@@ -1,0 +1,33 @@
+/* === HockeyTime Finder - Current Day Highlight === */
+
+:root{
+    --kachina-maroon:#8B2B39;
+    --kachina-green:#2F5E4E;
+    --kachina-cream:#E8D7A5;
+    --kachina-black:#1A1A18;
+}
+
+/* Today's header */
+.fc .fc-col-header-cell.fc-day-today{
+    background: var(--kachina-green) !important;
+    color: var(--kachina-cream) !important;
+    font-weight:700;
+    border-bottom:2px solid var(--kachina-cream);
+}
+
+/* Today's column */
+.fc .fc-day-today,
+.fc .fc-timegrid-col.fc-day-today{
+    background: rgba(47,94,78,.22) !important;
+}
+
+/* Month view date */
+.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number{
+    color: var(--kachina-cream) !important;
+    font-weight:700;
+}
+
+/* Subtle outline */
+.fc .fc-day-today{
+    box-shadow: inset 0 0 0 1px rgba(232,215,165,.25);
+}
