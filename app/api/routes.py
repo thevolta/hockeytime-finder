@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Query, Response
-from app.services.source_loader import fetch_all_events
+from app.services.source_loader import fetch_all_events, load_sources
 from app.services.calendar_service import build_ics
+from app.providers.daysmart_provider import DaySmartProvider
 
 router = APIRouter()
 
@@ -23,6 +24,23 @@ def get_events(
         ]
 
     return {"events": events, "errors": errors}
+
+
+@router.get("/api/diagnostics/daysmart")
+def daysmart_diagnostics():
+    results = []
+    for source in load_sources():
+        if source.get("provider") == "daysmart":
+            try:
+                results.append(DaySmartProvider(source).diagnostic())
+            except Exception as exc:
+                results.append(
+                    {
+                        "source": source.get("name"),
+                        "error": str(exc),
+                    }
+                )
+    return {"daysmart": results}
 
 
 @router.get("/calendar.ics")
