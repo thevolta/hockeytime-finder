@@ -737,3 +737,358 @@ dialog::backdrop {
     justify-items: start;
   }
 }
+
+
+/* =========================================================
+   Step 6.5 — Hard dark-mode override for FullCalendar Classic
+   ========================================================= */
+
+#calendar,
+#calendar .fc,
+#calendar .fc-view-harness,
+#calendar .fc-view,
+#calendar .fc-scrollgrid,
+#calendar .fc-scrollgrid-section > td,
+#calendar .fc-scrollgrid-section-liquid > td,
+#calendar .fc-scrollgrid-section-body > td {
+  background: #0a100f !important;
+  color: #ead8b4 !important;
+}
+
+#calendar .fc-theme-classic .fc-scrollgrid,
+#calendar .fc-theme-standard .fc-scrollgrid,
+#calendar table,
+#calendar tbody,
+#calendar thead {
+  background: #0a100f !important;
+}
+
+/* Header cells */
+#calendar .fc-col-header,
+#calendar .fc-col-header-cell,
+#calendar .fc-scrollgrid-section-header > *,
+#calendar .fc-theme-classic th {
+  background: #711f29 !important;
+  color: #f1dfb9 !important;
+}
+
+#calendar .fc-col-header-cell-cushion {
+  color: #f1dfb9 !important;
+}
+
+/* Month cells */
+#calendar .fc-daygrid-body,
+#calendar .fc-daygrid-day,
+#calendar .fc-daygrid-day-frame,
+#calendar .fc-daygrid-day-events,
+#calendar .fc-daygrid-day-bg {
+  background: #0a100f !important;
+}
+
+#calendar .fc-day-other,
+#calendar .fc-day-other .fc-daygrid-day-frame {
+  background: #080c0b !important;
+}
+
+#calendar .fc-day-today,
+#calendar .fc-daygrid-day.fc-day-today,
+#calendar .fc-timegrid-col.fc-day-today {
+  background: rgba(23, 75, 57, .24) !important;
+}
+
+#calendar .fc-daygrid-day.fc-day-today {
+  box-shadow: inset 0 0 0 1px #d1b56f !important;
+}
+
+#calendar .fc-daygrid-day-number,
+#calendar .fc-timegrid-slot-label-cushion,
+#calendar .fc-timegrid-axis-cushion {
+  color: #ead8b4 !important;
+}
+
+#calendar .fc-day-other .fc-daygrid-day-number {
+  color: #746957 !important;
+}
+
+/* Grid lines */
+#calendar td,
+#calendar th,
+#calendar .fc-scrollgrid,
+#calendar .fc-timegrid-slot,
+#calendar .fc-timegrid-col,
+#calendar .fc-daygrid-day {
+  border-color: #3b382f !important;
+}
+
+/* Time-grid background */
+#calendar .fc-timegrid-body,
+#calendar .fc-timegrid-cols,
+#calendar .fc-timegrid-col-frame,
+#calendar .fc-timegrid-slots,
+#calendar .fc-timegrid-slot,
+#calendar .fc-timegrid-axis,
+#calendar .fc-timegrid-divider {
+  background: #0a100f !important;
+}
+
+#calendar .fc-timegrid-slot-minor {
+  border-top-color: #252a25 !important;
+}
+
+/* Event blocks */
+#calendar .fc-timegrid-event,
+#calendar .fc-daygrid-block-event {
+  border: 0 !important;
+  border-radius: 5px !important;
+  box-shadow: none !important;
+}
+
+#calendar .fc-timegrid-event .fc-event-main,
+#calendar .fc-daygrid-block-event .fc-event-main {
+  color: #f1dfb9 !important;
+}
+
+#calendar .fc-daygrid-dot-event {
+  color: #ead8b4 !important;
+  background: transparent !important;
+}
+
+#calendar .fc-daygrid-dot-event:hover {
+  background: rgba(231, 211, 165, .07) !important;
+}
+
+#calendar .fc-event-time,
+#calendar .fc-event-title {
+  color: inherit !important;
+}
+
+/* Toolbar */
+#calendar .fc-toolbar-title {
+  color: #f1dfb9 !important;
+}
+
+#calendar .fc-button {
+  color: #f1dfb9 !important;
+  background: #5f1b24 !important;
+  border-color: #932b39 !important;
+}
+
+#calendar .fc-button:hover {
+  background: #7b2430 !important;
+  border-color: #ae3d4c !important;
+}
+
+#calendar .fc-button:disabled {
+  color: #8f846e !important;
+  background: #1a2822 !important;
+  border-color: #2c493a !important;
+  opacity: 1 !important;
+}
+
+#calendar .fc-today-button:not(:disabled) {
+  background: #174b39 !important;
+  border-color: #2b7557 !important;
+}
+
+/* Month view should use compact dot events, like the approved mockup */
+#calendar .fc-daygrid-event-harness {
+  margin-top: 1px;
+}
+
+#calendar .fc-daygrid-dot-event .fc-event-title {
+  font-weight: 650 !important;
+}
+
+#calendar .fc-daygrid-dot-event .fc-event-time {
+  font-weight: 750 !important;
+}
+
+/* Slightly denser desktop calendar */
+@media (min-width: 1000px) {
+  #calendar .fc-daygrid-day-frame {
+    min-height: 132px;
+  }
+
+  #calendar .fc-daygrid-event {
+    font-size: .76rem;
+  }
+}
+
+
+
+/* =========================================================
+   Step 6.6 — Fixed top band + logo header
+   ========================================================= */
+
+:root {
+  --top-band-height: 42px;
+}
+
+/* The patterned top band stays visually fixed to the top of the viewport. */
+body::before,
+body::after {
+  position: fixed !important;
+  z-index: 1000 !important;
+}
+
+body::before {
+  height: var(--top-band-height) !important;
+  background:
+    linear-gradient(
+      to bottom,
+      #e7d3a5 0 30px,
+      #174b39 30px 37px,
+      #101614 37px var(--top-band-height)
+    ) !important;
+}
+
+/* Cleaner stepped Kachina-inspired repeat across the cream strip. */
+body::after {
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 30px !important;
+  background: none !important;
+  -webkit-mask: none !important;
+  mask: none !important;
+
+  background-image:
+    linear-gradient(#8f2431, #8f2431),
+    linear-gradient(#8f2431, #8f2431),
+    linear-gradient(#8f2431, #8f2431);
+  background-repeat: repeat-x;
+  background-size:
+    62px 9px,
+    18px 12px,
+    18px 9px;
+  background-position:
+    0 0,
+    13px 9px,
+    31px 21px;
+}
+
+/* Add enough breathing room so the fixed top band never overlaps content. */
+.site-header {
+  padding-top: calc(var(--top-band-height) + 36px) !important;
+}
+
+/* Logo + title lockup matching the approved reference. */
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.brand-logo {
+  width: 92px;
+  height: 92px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  display: block;
+  filter:
+    drop-shadow(0 2px 1px rgba(0, 0, 0, .25))
+    drop-shadow(0 5px 12px rgba(0, 0, 0, .22));
+}
+
+.brand-copy {
+  min-width: 0;
+}
+
+.brand-copy .eyebrow {
+  margin-bottom: 5px;
+}
+
+.brand-copy h1 {
+  margin-bottom: 7px;
+}
+
+/* Keep the side graphics behind page content and visually aligned to calendar. */
+main::before,
+main::after {
+  z-index: -1 !important;
+  top: 30% !important;
+  width: 58px !important;
+  height: 420px !important;
+}
+
+main::before {
+  background:
+    linear-gradient(
+      45deg,
+      #174b39 0 25%,
+      #e7d3a5 25% 31%,
+      #8f2431 31% 65%,
+      #e7d3a5 65% 71%,
+      #174b39 71% 100%
+    ) !important;
+}
+
+main::after {
+  background:
+    linear-gradient(
+      -45deg,
+      #174b39 0 25%,
+      #e7d3a5 25% 31%,
+      #8f2431 31% 65%,
+      #e7d3a5 65% 71%,
+      #174b39 71% 100%
+    ) !important;
+}
+
+/* Keep the header composition stable on desktop. */
+@media (min-width: 801px) {
+  .site-header {
+    align-items: center !important;
+  }
+
+  .header-actions {
+    align-self: center;
+  }
+}
+
+@media (max-width: 800px) {
+  :root {
+    --top-band-height: 34px;
+  }
+
+  body::before {
+    height: var(--top-band-height) !important;
+    background:
+      linear-gradient(
+        to bottom,
+        #e7d3a5 0 24px,
+        #174b39 24px 30px,
+        #101614 30px var(--top-band-height)
+      ) !important;
+  }
+
+  body::after {
+    height: 24px !important;
+    background-size:
+      50px 7px,
+      14px 10px,
+      14px 7px;
+    background-position:
+      0 0,
+      10px 7px,
+      25px 17px;
+  }
+
+  .site-header {
+    padding-top: calc(var(--top-band-height) + 24px) !important;
+  }
+
+  .brand-lockup {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .brand-logo {
+    width: 68px;
+    height: 68px;
+  }
+
+  .brand-copy h1 {
+    font-size: clamp(2rem, 10vw, 3rem);
+  }
+}
