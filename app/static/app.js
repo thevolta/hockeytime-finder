@@ -5,9 +5,9 @@ const UPCOMING_PAGE_SIZE = 10;
 let upcomingPage = 0;
 
 const colors = {
-  "Stick Time": "#49c58b",
-  "Open Hockey": "#5fa8ff",
-  "Flow Hockey": "#b58cff",
+  "Stick Time": "#245f46",
+  "Open Hockey": "#693a79",
+  "Flow Hockey": "#7d202c",
 };
 
 const eventCount = document.getElementById("eventCount");
@@ -88,7 +88,7 @@ function fullCalendarEvents() {
     end: event.end,
     backgroundColor: colors[event.event_type] || "#5fa8ff",
     borderColor: colors[event.event_type] || "#5fa8ff",
-    textColor: "#07101d",
+    textColor: "#f1dfb9",
     extendedProps: { source: event },
   }));
 }

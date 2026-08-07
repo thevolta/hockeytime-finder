@@ -39,6 +39,19 @@ sources:
     cache_seconds: 300
     register_fallback: "https://apps.daysmartrecreation.com/dash/x/azice/programs/6/levels"
 
+  - name: AZ Ice Gilbert
+    provider: daysmart
+    company: azice
+    facility_id: 2
+    state: AZ
+    city: Gilbert
+    days_ahead: 14
+    chunk_days: 2
+    chunk_workers: 8
+    cache_seconds: 300
+    public_page: "https://apps.daysmartrecreation.com/dash/x/azice/calendar?start=2026-08-06&end=2026-08-06"
+    register_fallback: "https://apps.daysmartrecreation.com/dash/x/azice/programs/6/levels"
+
   - name: AZ Ice Arcadia
     provider: daysmart
     company: azice

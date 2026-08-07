@@ -18,7 +18,7 @@ KEYWORDS = {
 }
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 HockeyTimeFinder/0.6",
+    "User-Agent": "Mozilla/5.0 HockeyTimeFinder/0.7",
     "Accept": "application/rss+xml, application/xml, text/xml, */*",
 }
 
@@ -41,7 +41,6 @@ class RSSProvider(BaseProvider):
         response.raise_for_status()
 
         feed = feedparser.parse(response.content)
-
         events: list[HockeyEvent] = []
         seen: set[str] = set()
 
@@ -75,21 +74,17 @@ class RSSProvider(BaseProvider):
 
             event_page = getattr(entry, "link", None)
 
-            uid_src = (
-                f'{self.source["name"]}|{title}|{start.isoformat()}'
-            )
+            uid_src = f'{self.source["name"]}|{title}|{start.isoformat()}'
             uid = sha1(uid_src.encode()).hexdigest()[:16]
 
             if uid in seen:
                 continue
             seen.add(uid)
 
-            # Schedule/source stays on the RSS/SportsEngine side, but the
-            # user-facing registration button can point to Mindbody.
-            register_url = (
-                self.source.get("register_fallback")
-                or event_page
-            )
+            # IMPORTANT:
+            # For Ice Den the schedule is still sourced from RSS, but the
+            # registration button should always use the configured Mindbody URL.
+            register_url = self.source.get("register_fallback") or event_page
 
             events.append(
                 HockeyEvent(
@@ -108,5 +103,5 @@ class RSSProvider(BaseProvider):
                 )
             )
 
-        events.sort(key=lambda event: event.start)
+        events.sort(key=lambda e: e.start)
         return events
