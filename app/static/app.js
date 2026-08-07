@@ -58,8 +58,7 @@ function availabilityText(event) {
   }
   if (Number.isInteger(event.capacity) && event.capacity > 0) {
     if (Number.isInteger(event.registered_count) && event.registered_count >= 0) {
-      const calculated = Math.max(0, event.capacity - event.registered_count);
-      return `${calculated} of ${event.capacity} spots calculated available`;
+      return `${Math.max(0, event.capacity - event.registered_count)} of ${event.capacity} spots calculated available`;
     }
     return `${event.capacity} player capacity`;
   }
@@ -90,6 +89,7 @@ function populateRinks() {
     option.textContent = rink;
     rinkFilter.appendChild(option);
   }
+
   if (rinks.includes(current)) rinkFilter.value = current;
 }
 
@@ -105,6 +105,7 @@ function renderUpcoming() {
   }
 
   upcomingList.innerHTML = "";
+
   for (const event of events) {
     const item = document.createElement("article");
     item.className = "upcoming-item";
@@ -135,8 +136,7 @@ function renderUpcoming() {
 }
 
 function renderAll() {
-  const filtered = filteredEvents();
-  eventCount.textContent = filtered.length;
+  eventCount.textContent = filteredEvents().length;
   calendar.removeAllEvents();
   calendar.addEventSource(fullCalendarEvents());
   renderUpcoming();
@@ -149,7 +149,7 @@ function openEvent(event) {
   const end = event.end ? `–${displayTime(event.end)}` : "";
   const availability = availabilityText(event);
   const status = event.registration_status
-    ? `<div>DaySmart status: ${escapeHtml(event.registration_status)}</div>`
+    ? `<div>Registration status: ${escapeHtml(event.registration_status)}</div>`
     : "";
 
   dialogMeta.innerHTML = `
@@ -174,8 +174,7 @@ function openEvent(event) {
 
 function downloadSingleEvent(event) {
   const start = new Date(event.start);
-  const end = event.end ? new Date(event.end) : new Date(start.getTime() + 60 * 60 * 1000);
-
+  const end = event.end ? new Date(event.end) : new Date(start.getTime() + 3600000);
   const toICS = date => date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
   const location = [event.rink, event.city, event.state].filter(Boolean).join(", ");
   const url = event.register_url || event.source_url || "";
@@ -205,7 +204,6 @@ function downloadSingleEvent(event) {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(link.href);
 }
 
 function icsEscape(value) {
@@ -225,11 +223,12 @@ function escapeHtml(value) {
     .replace(/'/g, "&#039;");
 }
 
-async function loadEvents() {
-  statusText.className = "muted";
-  statusText.textContent = "Loading schedules…";
-  refreshButton.disabled = true;
+function formatRefreshTime(iso) {
+  if (!iso) return "Cache has not completed its first refresh yet.";
+  return `Calendar cache updated ${new Date(iso).toLocaleString()}`;
+}
 
+async function loadEvents() {
   try {
     const response = await fetch("/api/events", { cache: "no-store" });
     if (!response.ok) throw new Error(`API returned ${response.status}`);
@@ -239,27 +238,67 @@ async function loadEvents() {
     populateRinks();
     renderAll();
 
-    if (data.errors && data.errors.length) {
-      const names = data.errors.map(e => e.source).join(", ");
-      statusText.className = "error";
-      statusText.textContent = `Loaded with source errors: ${names}`;
+    if (data.cache?.refreshing) {
+      statusText.className = "muted";
+      statusText.textContent = "Refreshing rink calendars in the background…";
     } else {
       statusText.className = "muted";
-      statusText.textContent = `Updated ${new Date().toLocaleTimeString([], {hour: "numeric", minute: "2-digit"})}`;
+      statusText.textContent = formatRefreshTime(data.cache?.last_successful_refresh);
     }
   } catch (error) {
-    console.error(error);
     statusText.className = "error";
-    statusText.textContent = `Could not load events: ${error.message}`;
+    statusText.textContent = `Could not load cached events: ${error.message}`;
+  }
+}
+
+async function manualRefresh() {
+  refreshButton.disabled = true;
+  statusText.className = "muted";
+  statusText.textContent = "Starting manual calendar refresh…";
+
+  try {
+    const response = await fetch("/api/refresh", {
+      method: "POST",
+      headers: { "Accept": "application/json" },
+    });
+
+    const data = await response.json();
+
+    if (response.status === 429) {
+      statusText.className = "error";
+      statusText.textContent = data.detail || "Refresh is temporarily unavailable.";
+      return;
+    }
+
+    if (!response.ok) throw new Error(data.detail || `API returned ${response.status}`);
+
+    statusText.className = "muted";
+    statusText.textContent = "Refreshing rink calendars in the background…";
+
+    // Poll the lightweight cache status, not the rink sites.
+    for (let i = 0; i < 60; i++) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      const statusResponse = await fetch("/api/status", { cache: "no-store" });
+      const status = await statusResponse.json();
+
+      if (!status.refreshing) {
+        await loadEvents();
+        return;
+      }
+    }
+
+    statusText.textContent = "Refresh is still running; cached events remain available.";
+  } catch (error) {
+    statusText.className = "error";
+    statusText.textContent = `Refresh failed: ${error.message}`;
   } finally {
     refreshButton.disabled = false;
   }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const calendarEl = document.getElementById("calendar");
-
-  calendar = new FullCalendar.Calendar(calendarEl, {
+  calendar = new FullCalendar.Calendar(document.getElementById("calendar"), {
     initialView: window.innerWidth < 700 ? "listWeek" : "timeGridWeek",
     height: "auto",
     nowIndicator: true,
@@ -291,7 +330,7 @@ document.addEventListener("DOMContentLoaded", () => {
     calendar.changeView(viewSelect.value);
   });
 
-  refreshButton.addEventListener("click", loadEvents);
+  refreshButton.addEventListener("click", manualRefresh);
 
   loadEvents();
 });
