@@ -17,6 +17,8 @@ const viewSelect = document.getElementById("viewSelect");
 const upcomingList = document.getElementById("upcomingList");
 const refreshButton = document.getElementById("refreshButton");
 const noWorkHours = document.getElementById("noWorkHours");
+const filterAM = document.getElementById("filterAM");
+const filterPM = document.getElementById("filterPM");
 
 const upcomingPrev = document.getElementById("upcomingPrev");
 const upcomingNext = document.getElementById("upcomingNext");
@@ -72,6 +74,19 @@ function overlapsWorkHours(event) {
   return start < workEnd && normalizedEnd > workStart;
 }
 
+function matchesTimeOfDay(event) {
+  const startMinutes = arizonaMinutes(event.start);
+  const startsAM = startMinutes < (12 * 60);
+
+  const showAM = Boolean(filterAM?.checked);
+  const showPM = Boolean(filterPM?.checked);
+
+  if (startsAM && showAM) return true;
+  if (!startsAM && showPM) return true;
+
+  return false;
+}
+
 function filteredEvents() {
   const types = selectedTypes();
   const rink = rinkFilter.value;
@@ -80,13 +95,16 @@ function filteredEvents() {
   return rawEvents.filter(event => {
     const typeOk = types.includes(event.event_type);
     const rinkOk = !rink || event.rink === rink;
+    const timeOfDayOk = matchesTimeOfDay(event);
     const workHoursOk = !hideWorkHours || !overlapsWorkHours(event);
 
-    return typeOk && rinkOk && workHoursOk;
+    return typeOk && rinkOk && timeOfDayOk && workHoursOk;
   });
 }
 
 function upcomingEvents() {
+  // Next Sessions intentionally uses filteredEvents(), so EVERY filter
+  // (rink, event type, AM/PM, and No work hours) applies here too.
   return filteredEvents()
     .filter(e => new Date(e.start) >= new Date())
     .sort((a, b) => new Date(a.start) - new Date(b.start));
@@ -475,6 +493,8 @@ document.addEventListener("DOMContentLoaded", () => {
   rinkFilter.addEventListener("change", () => renderAll(true));
 
   noWorkHours?.addEventListener("change", () => renderAll(true));
+  filterAM?.addEventListener("change", () => renderAll(true));
+  filterPM?.addEventListener("change", () => renderAll(true));
 
   viewSelect.value = calendar.view.type;
   viewSelect.addEventListener("change", () => {

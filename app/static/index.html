@@ -32,10 +32,23 @@
         <label><input type="checkbox" value="Open Hockey" class="type-filter" checked> Open Hockey</label>
         <label><input type="checkbox" value="Flow Hockey" class="type-filter" checked> Flow Hockey</label>
         <span class="filter-divider" aria-hidden="true"></span>
-        <label class="work-hours-filter">
-          <input type="checkbox" id="noWorkHours">
-          No work hours
-        </label>
+
+        <div class="time-filters" aria-label="Time of day filters">
+          <label class="time-filter">
+            <input type="checkbox" id="filterAM" checked>
+            AM
+          </label>
+
+          <label class="time-filter">
+            <input type="checkbox" id="filterPM" checked>
+            PM
+          </label>
+
+          <label class="work-hours-filter">
+            <input type="checkbox" id="noWorkHours">
+            No work hours
+          </label>
+        </div>
       </div>
 
       <div class="filter-group">

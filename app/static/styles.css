@@ -611,3 +611,44 @@ dialog::backdrop {
     padding: 11px 12px !important;
   }
 }
+
+
+/* =========================================================
+   Step 6.11 — AM / PM / No Work Hours filter group
+   ========================================================= */
+
+.time-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.time-filter,
+.work-hours-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cream);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.time-filter input,
+.work-hours-filter input {
+  margin: 0;
+}
+
+@media (max-width: 800px) {
+  .time-filters {
+    width: 100%;
+    padding-top: 4px;
+    gap: 16px;
+  }
+
+  .time-filter,
+  .work-hours-filter {
+    width: auto;
+    padding-top: 0;
+  }
+}
