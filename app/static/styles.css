@@ -240,3 +240,51 @@ dialog::backdrop { background: rgba(0,0,0,.7); }
   }
   .calendar-shell { padding: 8px; }
 }
+
+
+/* Step 6.1 — Quick View pagination */
+
+.upcoming-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 18px;
+}
+
+.upcoming-pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.small-button {
+  padding: 7px 11px;
+  font-size: .86rem;
+}
+
+.button:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+#upcomingPageInfo {
+  min-width: 74px;
+  text-align: right;
+  font-size: .85rem;
+}
+
+@media (max-width: 700px) {
+  .upcoming-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .upcoming-pagination {
+    width: 100%;
+  }
+
+  #upcomingPageInfo {
+    margin-right: auto;
+    text-align: left;
+  }
+}

@@ -5,7 +5,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0b1220">
   <title>HockeyTime Finder</title>
+
+  <!-- FullCalendar v7 requires its skeleton stylesheet separately. -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@7.0.2/skeleton.css">
   <link rel="stylesheet" href="/static/styles.css">
+
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@7.0.2/all/global.js"></script>
 </head>
 <body>
@@ -60,12 +64,23 @@
     </section>
 
     <section class="upcoming-section">
-      <div class="section-heading">
+      <div class="section-heading upcoming-heading">
         <div>
           <div class="eyebrow">Quick view</div>
           <h2>Next sessions</h2>
         </div>
+
+        <div class="upcoming-pagination">
+          <span id="upcomingPageInfo" class="muted"></span>
+          <button class="button secondary small-button" id="upcomingPrev" type="button">
+            Previous
+          </button>
+          <button class="button secondary small-button" id="upcomingNext" type="button">
+            Next
+          </button>
+        </div>
       </div>
+
       <div id="upcomingList" class="upcoming-list"></div>
     </section>
   </main>

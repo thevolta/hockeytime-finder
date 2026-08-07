@@ -1,6 +1,9 @@
 let rawEvents = [];
 let calendar = null;
 
+const UPCOMING_PAGE_SIZE = 10;
+let upcomingPage = 0;
+
 const colors = {
   "Stick Time": "#49c58b",
   "Open Hockey": "#5fa8ff",
@@ -13,6 +16,10 @@ const rinkFilter = document.getElementById("rinkFilter");
 const viewSelect = document.getElementById("viewSelect");
 const upcomingList = document.getElementById("upcomingList");
 const refreshButton = document.getElementById("refreshButton");
+
+const upcomingPrev = document.getElementById("upcomingPrev");
+const upcomingNext = document.getElementById("upcomingNext");
+const upcomingPageInfo = document.getElementById("upcomingPageInfo");
 
 const dialog = document.getElementById("eventDialog");
 const dialogType = document.getElementById("dialogType");
@@ -36,6 +43,12 @@ function filteredEvents() {
   });
 }
 
+function upcomingEvents() {
+  return filteredEvents()
+    .filter(e => new Date(e.start) >= new Date())
+    .sort((a, b) => new Date(a.start) - new Date(b.start));
+}
+
 function displayTime(iso) {
   if (!iso) return "";
   return new Intl.DateTimeFormat([], {
@@ -56,12 +69,14 @@ function availabilityText(event) {
   if (Number.isInteger(event.open_slots) && event.open_slots >= 0) {
     return `${event.open_slots} spots shown available`;
   }
+
   if (Number.isInteger(event.capacity) && event.capacity > 0) {
     if (Number.isInteger(event.registered_count) && event.registered_count >= 0) {
       return `${Math.max(0, event.capacity - event.registered_count)} of ${event.capacity} spots calculated available`;
     }
     return `${event.capacity} player capacity`;
   }
+
   return "";
 }
 
@@ -83,6 +98,7 @@ function populateRinks() {
   const rinks = [...new Set(rawEvents.map(e => e.rink))].sort();
 
   rinkFilter.innerHTML = '<option value="">All rinks</option>';
+
   for (const rink of rinks) {
     const option = document.createElement("option");
     option.value = rink;
@@ -90,23 +106,47 @@ function populateRinks() {
     rinkFilter.appendChild(option);
   }
 
-  if (rinks.includes(current)) rinkFilter.value = current;
+  if (rinks.includes(current)) {
+    rinkFilter.value = current;
+  }
+}
+
+function resetUpcomingPage() {
+  upcomingPage = 0;
 }
 
 function renderUpcoming() {
-  const events = filteredEvents()
-    .filter(e => new Date(e.start) >= new Date())
-    .sort((a, b) => new Date(a.start) - new Date(b.start))
-    .slice(0, 12);
+  const events = upcomingEvents();
+  const totalPages = Math.max(1, Math.ceil(events.length / UPCOMING_PAGE_SIZE));
 
-  if (!events.length) {
-    upcomingList.innerHTML = '<div class="empty">No upcoming events match these filters.</div>';
+  if (upcomingPage >= totalPages) {
+    upcomingPage = totalPages - 1;
+  }
+
+  const startIndex = upcomingPage * UPCOMING_PAGE_SIZE;
+  const pageEvents = events.slice(
+    startIndex,
+    startIndex + UPCOMING_PAGE_SIZE
+  );
+
+  upcomingPrev.disabled = upcomingPage <= 0;
+  upcomingNext.disabled = upcomingPage >= totalPages - 1 || events.length === 0;
+
+  if (events.length) {
+    upcomingPageInfo.textContent = `${startIndex + 1}–${Math.min(startIndex + UPCOMING_PAGE_SIZE, events.length)} of ${events.length}`;
+  } else {
+    upcomingPageInfo.textContent = "";
+  }
+
+  if (!pageEvents.length) {
+    upcomingList.innerHTML =
+      '<div class="empty">No upcoming events match these filters.</div>';
     return;
   }
 
   upcomingList.innerHTML = "";
 
-  for (const event of events) {
+  for (const event of pageEvents) {
     const item = document.createElement("article");
     item.className = "upcoming-item";
 
@@ -117,6 +157,7 @@ function renderUpcoming() {
     `;
 
     const availability = availabilityText(event);
+
     const info = document.createElement("div");
     info.innerHTML = `
       <div class="upcoming-title">${escapeHtml(event.event_type)}</div>
@@ -135,10 +176,16 @@ function renderUpcoming() {
   }
 }
 
-function renderAll() {
+function renderAll(resetPage = false) {
+  if (resetPage) {
+    resetUpcomingPage();
+  }
+
   eventCount.textContent = filteredEvents().length;
+
   calendar.removeAllEvents();
   calendar.addEventSource(fullCalendarEvents());
+
   renderUpcoming();
 }
 
@@ -161,6 +208,7 @@ function openEvent(event) {
   `;
 
   const destination = event.register_url || event.source_url;
+
   if (destination) {
     dialogRegister.href = destination;
     dialogRegister.style.display = "inline-block";
@@ -174,9 +222,17 @@ function openEvent(event) {
 
 function downloadSingleEvent(event) {
   const start = new Date(event.start);
-  const end = event.end ? new Date(event.end) : new Date(start.getTime() + 3600000);
-  const toICS = date => date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
-  const location = [event.rink, event.city, event.state].filter(Boolean).join(", ");
+  const end = event.end
+    ? new Date(event.end)
+    : new Date(start.getTime() + 3600000);
+
+  const toICS = date =>
+    date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+
+  const location = [event.rink, event.city, event.state]
+    .filter(Boolean)
+    .join(", ");
+
   const url = event.register_url || event.source_url || "";
   const description = url ? `Register / View: ${url}` : "";
 
@@ -195,9 +251,14 @@ function downloadSingleEvent(event) {
     url ? `URL:${url}` : "",
     "END:VEVENT",
     "END:VCALENDAR",
-  ].filter(Boolean).join("\r\n");
+  ]
+    .filter(Boolean)
+    .join("\r\n");
 
-  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+  const blob = new Blob([ics], {
+    type: "text/calendar;charset=utf-8",
+  });
+
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.download = "hockeytime-event.ics";
@@ -224,30 +285,44 @@ function escapeHtml(value) {
 }
 
 function formatRefreshTime(iso) {
-  if (!iso) return "Cache has not completed its first refresh yet.";
+  if (!iso) {
+    return "Cache has not completed its first refresh yet.";
+  }
+
   return `Calendar cache updated ${new Date(iso).toLocaleString()}`;
 }
 
 async function loadEvents() {
   try {
-    const response = await fetch("/api/events", { cache: "no-store" });
-    if (!response.ok) throw new Error(`API returned ${response.status}`);
+    const response = await fetch("/api/events", {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}`);
+    }
 
     const data = await response.json();
+
     rawEvents = data.events || [];
+
     populateRinks();
-    renderAll();
+    renderAll(true);
 
     if (data.cache?.refreshing) {
       statusText.className = "muted";
-      statusText.textContent = "Refreshing rink calendars in the background…";
+      statusText.textContent =
+        "Refreshing rink calendars in the background…";
     } else {
       statusText.className = "muted";
-      statusText.textContent = formatRefreshTime(data.cache?.last_successful_refresh);
+      statusText.textContent = formatRefreshTime(
+        data.cache?.last_successful_refresh
+      );
     }
   } catch (error) {
     statusText.className = "error";
-    statusText.textContent = `Could not load cached events: ${error.message}`;
+    statusText.textContent =
+      `Could not load cached events: ${error.message}`;
   }
 }
 
@@ -259,27 +334,37 @@ async function manualRefresh() {
   try {
     const response = await fetch("/api/refresh", {
       method: "POST",
-      headers: { "Accept": "application/json" },
+      headers: {
+        Accept: "application/json",
+      },
     });
 
     const data = await response.json();
 
     if (response.status === 429) {
       statusText.className = "error";
-      statusText.textContent = data.detail || "Refresh is temporarily unavailable.";
+      statusText.textContent =
+        data.detail || "Refresh is temporarily unavailable.";
       return;
     }
 
-    if (!response.ok) throw new Error(data.detail || `API returned ${response.status}`);
+    if (!response.ok) {
+      throw new Error(
+        data.detail || `API returned ${response.status}`
+      );
+    }
 
     statusText.className = "muted";
-    statusText.textContent = "Refreshing rink calendars in the background…";
+    statusText.textContent =
+      "Refreshing rink calendars in the background…";
 
-    // Poll the lightweight cache status, not the rink sites.
     for (let i = 0; i < 60; i++) {
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      const statusResponse = await fetch("/api/status", { cache: "no-store" });
+      const statusResponse = await fetch("/api/status", {
+        cache: "no-store",
+      });
+
       const status = await statusResponse.json();
 
       if (!status.refreshing) {
@@ -288,46 +373,77 @@ async function manualRefresh() {
       }
     }
 
-    statusText.textContent = "Refresh is still running; cached events remain available.";
+    statusText.textContent =
+      "Refresh is still running; cached events remain available.";
   } catch (error) {
     statusText.className = "error";
-    statusText.textContent = `Refresh failed: ${error.message}`;
+    statusText.textContent =
+      `Refresh failed: ${error.message}`;
   } finally {
     refreshButton.disabled = false;
   }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  calendar = new FullCalendar.Calendar(document.getElementById("calendar"), {
-    initialView: window.innerWidth < 700 ? "listWeek" : "timeGridWeek",
-    height: "auto",
-    nowIndicator: true,
-    firstDay: 0,
-    slotMinTime: "06:00:00",
-    slotMaxTime: "24:00:00",
-    allDaySlot: false,
-    eventTimeFormat: { hour: "numeric", minute: "2-digit" },
-    headerToolbar: {
-      left: "prev,next today",
-      center: "title",
-      right: "",
-    },
-    eventClick(info) {
-      openEvent(info.event.extendedProps.source);
-    },
-  });
+  calendar = new FullCalendar.Calendar(
+    document.getElementById("calendar"),
+    {
+      initialView:
+        window.innerWidth < 700 ? "listWeek" : "timeGridWeek",
+      height: "auto",
+      nowIndicator: true,
+      firstDay: 0,
+      slotMinTime: "06:00:00",
+      slotMaxTime: "24:00:00",
+      allDaySlot: false,
+      eventTimeFormat: {
+        hour: "numeric",
+        minute: "2-digit",
+      },
+      headerToolbar: {
+        left: "prev,next today",
+        center: "title",
+        right: "",
+      },
+      eventClick(info) {
+        openEvent(info.event.extendedProps.source);
+      },
+    }
+  );
 
   calendar.render();
 
   document.querySelectorAll(".type-filter").forEach(el => {
-    el.addEventListener("change", renderAll);
+    el.addEventListener("change", () => renderAll(true));
   });
 
-  rinkFilter.addEventListener("change", renderAll);
+  rinkFilter.addEventListener("change", () => renderAll(true));
 
   viewSelect.value = calendar.view.type;
   viewSelect.addEventListener("change", () => {
     calendar.changeView(viewSelect.value);
+  });
+
+  upcomingPrev.addEventListener("click", () => {
+    if (upcomingPage > 0) {
+      upcomingPage -= 1;
+      renderUpcoming();
+      document.querySelector(".upcoming-section")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  });
+
+  upcomingNext.addEventListener("click", () => {
+    const totalPages = Math.ceil(
+      upcomingEvents().length / UPCOMING_PAGE_SIZE
+    );
+
+    if (upcomingPage < totalPages - 1) {
+      upcomingPage += 1;
+      renderUpcoming();
+      document.querySelector(".upcoming-section")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   });
 
   refreshButton.addEventListener("click", manualRefresh);
