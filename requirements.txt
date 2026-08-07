@@ -1,0 +1,11 @@
+fastapi>=0.116
+uvicorn[standard]>=0.35
+sqlalchemy>=2.0
+pydantic>=2.11
+pydantic-settings>=2.10
+requests>=2.32
+feedparser>=6.0
+beautifulsoup4>=4.13
+python-dateutil>=2.9
+icalendar>=6.3
+PyYAML>=6.0

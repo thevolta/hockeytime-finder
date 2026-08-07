@@ -1,0 +1,32 @@
+sources:
+  - name: Ice Den Chandler
+    provider: rss
+    state: AZ
+    city: Chandler
+    url: "https://www.icedenchandler.com/event_rss_feed?tags=2703965%2C2703970%2C2704012"
+
+  - name: Ice Den Scottsdale
+    provider: rss
+    state: AZ
+    city: Scottsdale
+    url: "https://www.icedenscottsdale.com/event_rss_feed?tags=2670384%2C2670407%2C2678497%2C2662957"
+
+  - name: Mullett Arena
+    provider: sportified
+    state: AZ
+    city: Tempe
+    url: "https://mullett.sportified.net/schedule?tags%5B%5D=Stick+Time&tags%5B%5D=Sticktime&tags%5B%5D=Open+Hockey&tags%5B%5D=Flow"
+
+  - name: AZ Ice Peoria
+    provider: daysmart
+    state: AZ
+    city: Peoria
+    url: "https://azicepeoria.com/all-events/hockey-events/#calendar-section"
+    register_fallback: "https://apps.daysmartrecreation.com/dash/x/azice/programs/6/levels"
+
+  - name: AZ Ice Arcadia
+    provider: daysmart
+    state: AZ
+    city: Phoenix
+    url: "https://azicearcadia.com/hockey/"
+    register_fallback: "https://apps.daysmartrecreation.com/dash/x/azice/programs/6/levels"
