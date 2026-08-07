@@ -388,6 +388,7 @@ document.addEventListener("DOMContentLoaded", () => {
   calendar = new FullCalendar.Calendar(
     document.getElementById("calendar"),
     {
+      themeSystem: "classic",
       initialView:
         window.innerWidth < 700 ? "listWeek" : "timeGridWeek",
       height: "auto",

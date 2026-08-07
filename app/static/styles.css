@@ -288,3 +288,144 @@ dialog::backdrop { background: rgba(0,0,0,.7); }
     text-align: left;
   }
 }
+
+
+/* Step 6.2 — FullCalendar v7 Classic theme integration */
+
+.calendar-shell {
+  overflow: visible;
+}
+
+.fc {
+  width: 100%;
+  font-size: .92rem;
+
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: #111f33;
+  --fc-neutral-text-color: #91a0b6;
+  --fc-border-color: #31445d;
+  --fc-button-text-color: #f4f7fb;
+  --fc-button-bg-color: #111f33;
+  --fc-button-border-color: #31445d;
+  --fc-button-hover-bg-color: #182a42;
+  --fc-button-hover-border-color: #49627f;
+  --fc-button-active-bg-color: #5fa8ff;
+  --fc-button-active-border-color: #5fa8ff;
+  --fc-event-bg-color: #5fa8ff;
+  --fc-event-border-color: #5fa8ff;
+  --fc-event-text-color: #07101d;
+  --fc-today-bg-color: rgba(95, 168, 255, .08);
+  --fc-now-indicator-color: #ff7e7e;
+}
+
+.fc-theme-standard td,
+.fc-theme-standard th,
+.fc-theme-classic td,
+.fc-theme-classic th {
+  border-color: #31445d !important;
+}
+
+.fc .fc-scrollgrid,
+.fc-theme-standard .fc-scrollgrid,
+.fc-theme-classic .fc-scrollgrid {
+  border: 1px solid #31445d !important;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.fc .fc-timegrid-slot {
+  height: 2.7em;
+  border-color: #26374d !important;
+}
+
+.fc .fc-timegrid-slot-minor {
+  border-top-style: dotted;
+  opacity: .55;
+}
+
+.fc .fc-timegrid-axis-cushion,
+.fc .fc-timegrid-slot-label-cushion,
+.fc .fc-col-header-cell-cushion,
+.fc .fc-daygrid-day-number {
+  color: #dce6f3;
+}
+
+.fc .fc-timegrid-axis-cushion,
+.fc .fc-timegrid-slot-label-cushion {
+  padding-right: 10px;
+}
+
+.fc .fc-col-header-cell {
+  background: #111f33;
+}
+
+.fc .fc-col-header-cell-cushion {
+  display: block;
+  padding: 10px 6px;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.fc .fc-timegrid-col.fc-day-today,
+.fc .fc-daygrid-day.fc-day-today {
+  background: rgba(95, 168, 255, .07) !important;
+}
+
+.fc .fc-timegrid-event {
+  border-radius: 6px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .22);
+  overflow: hidden;
+}
+
+.fc .fc-timegrid-event .fc-event-main {
+  padding: 3px 5px;
+}
+
+.fc .fc-event-time {
+  font-weight: 800;
+}
+
+.fc .fc-event-title {
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.fc .fc-toolbar {
+  margin-bottom: 14px;
+}
+
+.fc .fc-toolbar-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.fc .fc-button {
+  border-radius: 8px !important;
+  padding: .45em .7em !important;
+  font-size: .86rem !important;
+  font-weight: 700 !important;
+  text-transform: none !important;
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  color: #07101d !important;
+}
+
+.fc .fc-timegrid-now-indicator-line {
+  border-width: 2px 0 0;
+}
+
+.fc .fc-timegrid-now-indicator-arrow {
+  border-width: 5px 0 5px 6px;
+}
+
+@media (max-width: 900px) {
+  .fc {
+    font-size: .82rem;
+  }
+
+  .fc .fc-timegrid-slot {
+    height: 2.3em;
+  }
+}

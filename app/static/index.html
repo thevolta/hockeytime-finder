@@ -6,11 +6,15 @@
   <meta name="theme-color" content="#0b1220">
   <title>HockeyTime Finder</title>
 
-  <!-- FullCalendar v7 requires its skeleton stylesheet separately. -->
+  <!-- FullCalendar v7: skeleton + theme are both required -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@7.0.2/skeleton.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@7.0.2/themes/classic/theme.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@7.0.2/themes/classic/palette.css">
+
   <link rel="stylesheet" href="/static/styles.css">
 
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@7.0.2/all/global.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@7.0.2/themes/classic/global.js"></script>
 </head>
 <body>
   <header class="site-header">
@@ -72,12 +76,8 @@
 
         <div class="upcoming-pagination">
           <span id="upcomingPageInfo" class="muted"></span>
-          <button class="button secondary small-button" id="upcomingPrev" type="button">
-            Previous
-          </button>
-          <button class="button secondary small-button" id="upcomingNext" type="button">
-            Next
-          </button>
+          <button class="button secondary small-button" id="upcomingPrev" type="button">Previous</button>
+          <button class="button secondary small-button" id="upcomingNext" type="button">Next</button>
         </div>
       </div>
 
