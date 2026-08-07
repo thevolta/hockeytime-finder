@@ -81,16 +81,26 @@ function availabilityText(event) {
 }
 
 function fullCalendarEvents() {
-  return filteredEvents().map(event => ({
-    id: event.id,
-    title: `${event.event_type} · ${event.rink}`,
-    start: event.start,
-    end: event.end,
-    backgroundColor: colors[event.event_type] || "#5fa8ff",
-    borderColor: colors[event.event_type] || "#5fa8ff",
-    textColor: "#f1dfb9",
-    extendedProps: { source: event },
-  }));
+  return filteredEvents().map(event => {
+    let eventClass = "ht-event";
+
+    if (event.event_type === "Stick Time") {
+      eventClass += " ht-stick";
+    } else if (event.event_type === "Open Hockey") {
+      eventClass += " ht-open";
+    } else if (event.event_type === "Flow Hockey") {
+      eventClass += " ht-flow";
+    }
+
+    return {
+      id: event.id,
+      title: `${event.event_type} · ${event.rink}`,
+      start: event.start,
+      end: event.end,
+      classNames: eventClass.split(" "),
+      extendedProps: { source: event },
+    };
+  });
 }
 
 function populateRinks() {
@@ -388,7 +398,6 @@ document.addEventListener("DOMContentLoaded", () => {
   calendar = new FullCalendar.Calendar(
     document.getElementById("calendar"),
     {
-      themeSystem: "classic",
       initialView:
         window.innerWidth < 700 ? "listWeek" : "timeGridWeek",
       height: "auto",

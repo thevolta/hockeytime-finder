@@ -1,38 +1,27 @@
 :root {
   color-scheme: dark;
 
-  --bg: #080c0b;
-  --panel: #0b1110;
-  --panel-soft: #101715;
+  --bg: #0b0f14;
+  --panel: #111821;
+  --panel-2: #161f2b;
+  --border: #2a3645;
 
-  --cream: #edd9aa;
-  --cream-soft: #cdbb91;
+  --text: #f2f5f8;
+  --muted: #9aa9ba;
 
-  --maroon: #8e2432;
-  --maroon-dark: #641923;
-  --maroon-deep: #421117;
+  --accent: #5da9ff;
 
-  --green: #154b38;
-  --green-bright: #2c8f64;
-  --green-dark: #0e3126;
-
-  --purple: #754287;
-
-  --text: #ecd9ae;
-  --text-strong: #f6e5bd;
-  --muted: #a99b7d;
-
-  --border: #51442f;
-  --grid: #39352b;
-
-  --stick: #245f46;
-  --open: #693a79;
-  --flow: #7d202c;
+  --stick: #2d8f66;
+  --open: #7650a5;
+  --flow: #a43a45;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
-html, body {
+html,
+body {
   margin: 0;
   min-height: 100%;
   background: var(--bg);
@@ -48,192 +37,91 @@ body {
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
-  background:
-    radial-gradient(circle at 50% -15%, rgba(142, 36, 50, .12), transparent 28rem),
-    linear-gradient(180deg, #080c0b 0%, #090e0d 100%);
 }
-
-/* ----------------------------------------------------------
-   Top Kachina-inspired band
-   ---------------------------------------------------------- */
-
-body::before {
-  content: "";
-  position: fixed;
-  z-index: 1000;
-  pointer-events: none;
-  inset: 0 0 auto 0;
-  height: 48px;
-
-  background:
-    linear-gradient(
-      to bottom,
-      var(--maroon) 0 19px,
-      var(--cream) 19px 38px,
-      var(--green) 38px 44px,
-      #101614 44px 48px
-    );
-}
-
-/* Cream stepped pattern with maroon background showing through */
-body::after {
-  content: "";
-  position: fixed;
-  z-index: 1001;
-  pointer-events: none;
-  top: 17px;
-  left: 0;
-  right: 0;
-  height: 22px;
-
-  background:
-    repeating-linear-gradient(
-      90deg,
-      var(--cream) 0 25px,
-      transparent 25px 36px,
-      transparent 36px 48px,
-      var(--cream) 48px 73px
-    );
-
-  clip-path: polygon(
-    0 0, 100% 0, 100% 63%,
-    98.8% 63%, 98.8% 100%, 97.7% 100%, 97.7% 63%,
-    96.5% 63%, 96.5% 100%, 95.4% 100%, 95.4% 63%,
-    94.2% 63%, 94.2% 100%, 93.1% 100%, 93.1% 63%,
-    91.9% 63%, 91.9% 100%, 90.8% 100%, 90.8% 63%,
-    89.6% 63%, 89.6% 100%, 88.5% 100%, 88.5% 63%,
-    87.3% 63%, 87.3% 100%, 86.2% 100%, 86.2% 63%,
-    85% 63%, 85% 100%, 83.9% 100%, 83.9% 63%,
-    82.7% 63%, 82.7% 100%, 81.6% 100%, 81.6% 63%,
-    80.4% 63%, 80.4% 100%, 79.3% 100%, 79.3% 63%,
-    78.1% 63%, 78.1% 100%, 77% 100%, 77% 63%,
-    75.8% 63%, 75.8% 100%, 74.7% 100%, 74.7% 63%,
-    73.5% 63%, 73.5% 100%, 72.4% 100%, 72.4% 63%,
-    71.2% 63%, 71.2% 100%, 70.1% 100%, 70.1% 63%,
-    68.9% 63%, 68.9% 100%, 67.8% 100%, 67.8% 63%,
-    66.6% 63%, 66.6% 100%, 65.5% 100%, 65.5% 63%,
-    64.3% 63%, 64.3% 100%, 63.2% 100%, 63.2% 63%,
-    62% 63%, 62% 100%, 60.9% 100%, 60.9% 63%,
-    59.7% 63%, 59.7% 100%, 58.6% 100%, 58.6% 63%,
-    57.4% 63%, 57.4% 100%, 56.3% 100%, 56.3% 63%,
-    55.1% 63%, 55.1% 100%, 54% 100%, 54% 63%,
-    52.8% 63%, 52.8% 100%, 51.7% 100%, 51.7% 63%,
-    50.5% 63%, 50.5% 100%, 49.4% 100%, 49.4% 63%,
-    48.2% 63%, 48.2% 100%, 47.1% 100%, 47.1% 63%,
-    45.9% 63%, 45.9% 100%, 44.8% 100%, 44.8% 63%,
-    43.6% 63%, 43.6% 100%, 42.5% 100%, 42.5% 63%,
-    41.3% 63%, 41.3% 100%, 40.2% 100%, 40.2% 63%,
-    39% 63%, 39% 100%, 37.9% 100%, 37.9% 63%,
-    36.7% 63%, 36.7% 100%, 35.6% 100%, 35.6% 63%,
-    34.4% 63%, 34.4% 100%, 33.3% 100%, 33.3% 63%,
-    32.1% 63%, 32.1% 100%, 31% 100%, 31% 63%,
-    29.8% 63%, 29.8% 100%, 28.7% 100%, 28.7% 63%,
-    27.5% 63%, 27.5% 100%, 26.4% 100%, 26.4% 63%,
-    25.2% 63%, 25.2% 100%, 24.1% 100%, 24.1% 63%,
-    22.9% 63%, 22.9% 100%, 21.8% 100%, 21.8% 63%,
-    20.6% 63%, 20.6% 100%, 19.5% 100%, 19.5% 63%,
-    18.3% 63%, 18.3% 100%, 17.2% 100%, 17.2% 63%,
-    16% 63%, 16% 100%, 14.9% 100%, 14.9% 63%,
-    13.7% 63%, 13.7% 100%, 12.6% 100%, 12.6% 63%,
-    11.4% 63%, 11.4% 100%, 10.3% 100%, 10.3% 63%,
-    9.1% 63%, 9.1% 100%, 8% 100%, 8% 63%,
-    6.8% 63%, 6.8% 100%, 5.7% 100%, 5.7% 63%,
-    4.5% 63%, 4.5% 100%, 3.4% 100%, 3.4% 63%,
-    2.2% 63%, 2.2% 100%, 1.1% 100%, 1.1% 63%,
-    0 63%
-  );
-}
-
-/* ----------------------------------------------------------
-   Page layout
-   ---------------------------------------------------------- */
 
 .site-header,
 main {
-  position: relative;
-  z-index: 2;
-  width: min(1400px, calc(100% - 80px));
+  width: min(1400px, calc(100% - 40px));
   margin-inline: auto;
 }
 
 .site-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 28px;
-  padding: 98px 0 26px;
+  gap: 24px;
+  align-items: end;
+  padding: 42px 0 24px;
 }
 
-h1, h2, p { margin-top: 0; }
+h1,
+h2,
+p {
+  margin-top: 0;
+}
 
 h1 {
   margin-bottom: 8px;
-  color: var(--text-strong);
-  font-size: clamp(2.5rem, 5vw, 4.5rem);
-  line-height: .95;
-  letter-spacing: -.04em;
-  font-weight: 900;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  line-height: 1;
 }
 
-h2 { color: var(--text-strong); }
-
 .site-header p {
-  color: var(--cream-soft);
   margin-bottom: 0;
+  color: var(--muted);
 }
 
 .eyebrow {
-  margin-bottom: 9px;
-  color: var(--green-bright);
-  text-transform: uppercase;
-  letter-spacing: .13em;
+  margin-bottom: 6px;
+  color: var(--accent);
   font-size: .75rem;
-  font-weight: 850;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
 }
 
 .header-actions,
 .dialog-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .button {
   appearance: none;
-  border: 1px solid #772330;
+  border: 1px solid var(--border);
   border-radius: 9px;
-  background: linear-gradient(180deg, #5e1922, #431117);
-  color: var(--text-strong);
-  padding: 10px 15px;
+  background: var(--panel-2);
+  color: var(--text);
+  padding: 10px 14px;
   font: inherit;
-  font-weight: 850;
+  font-weight: 750;
   text-decoration: none;
   cursor: pointer;
 }
 
 .button:hover {
-  background: linear-gradient(180deg, #76212d, #57151d);
-}
-
-.button.secondary {
-  border-color: #574a33;
-  background: #0c1211;
+  background: #1c2836;
 }
 
 #refreshButton {
-  border-color: #236044;
-  background: linear-gradient(180deg, #174b39, #103426);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #07101a;
+}
+
+.button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
 }
 
 .filters {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr;
   gap: 16px;
-  padding: 16px;
-  border: 1px solid #50452f;
+  padding: 14px;
+  border: 1px solid var(--border);
   border-radius: 14px;
-  background:
-    linear-gradient(180deg, rgba(18, 24, 22, .98), rgba(10, 15, 14, .98));
+  background: var(--panel);
 }
 
 .filter-group {
@@ -244,257 +132,221 @@ h2 { color: var(--text-strong); }
 }
 
 .filter-label {
-  color: #d4c39b;
+  color: var(--muted);
   font-size: .84rem;
-  font-weight: 850;
+  font-weight: 750;
 }
 
-input[type="checkbox"] { accent-color: var(--maroon); }
-
 select {
-  color: var(--text-strong);
-  background: #0a0f0e;
-  border: 1px solid #584a33;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 9px 12px;
+  padding: 9px 11px;
 }
 
 .status-row {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  padding: 15px 2px;
+  padding: 14px 2px;
   color: var(--muted);
 }
 
-.status-row strong { color: var(--green-bright); }
-.muted { color: var(--muted); }
-.error { color: #d45b61; }
-
-/* ----------------------------------------------------------
-   Side accents
-   ---------------------------------------------------------- */
-
-main::before,
-main::after {
-  content: "";
-  position: fixed;
-  z-index: 0;
-  pointer-events: none;
-  top: 47%;
-  width: 66px;
-  height: 390px;
+.status-row strong {
+  color: var(--text);
 }
 
-main::before {
-  left: 0;
-  background:
-    linear-gradient(
-      45deg,
-      var(--green) 0 25%,
-      var(--cream) 25% 31%,
-      var(--maroon) 31% 69%,
-      var(--cream) 69% 75%,
-      var(--green) 75% 100%
-    );
-  clip-path: polygon(0 0, 100% 20%, 100% 80%, 0 100%);
+.muted {
+  color: var(--muted);
 }
 
-main::after {
-  right: 0;
-  background:
-    linear-gradient(
-      -45deg,
-      var(--green) 0 25%,
-      var(--cream) 25% 31%,
-      var(--maroon) 31% 69%,
-      var(--cream) 69% 75%,
-      var(--green) 75% 100%
-    );
-  clip-path: polygon(0 20%, 100% 0, 100% 100%, 0 80%);
+.error {
+  color: #ff7f86;
 }
-
-/* ----------------------------------------------------------
-   Calendar
-   ---------------------------------------------------------- */
 
 .calendar-shell {
-  border: 1px solid #51452f;
+  border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 16px;
-  background:
-    radial-gradient(circle at 50% 0%, rgba(142,36,50,.08), transparent 30rem),
-    #090e0d;
-  box-shadow: 0 25px 75px rgba(0,0,0,.26);
+  background: var(--panel);
+  padding: 14px;
 }
+
+/* ==========================================================
+   FullCalendar: simple forced dark theme
+   ========================================================== */
 
 #calendar,
 #calendar .fc,
 #calendar .fc-view-harness,
 #calendar .fc-view,
 #calendar .fc-scrollgrid,
+#calendar .fc-scrollgrid-section,
 #calendar .fc-scrollgrid-section > td,
-#calendar .fc-scrollgrid-section-liquid > td,
-#calendar .fc-scrollgrid-section-body > td,
-#calendar .fc-theme-classic,
-#calendar .fc-theme-standard {
-  background: #080d0c !important;
+#calendar .fc-scrollgrid-section > th,
+#calendar table,
+#calendar thead,
+#calendar tbody,
+#calendar tr,
+#calendar td,
+#calendar th {
+  background: #0e151d !important;
   color: var(--text) !important;
 }
 
 #calendar .fc {
-  --fc-page-bg-color: #080d0c;
-  --fc-neutral-bg-color: #0b1110;
+  --fc-page-bg-color: #0e151d;
+  --fc-neutral-bg-color: #141d27;
   --fc-neutral-text-color: var(--muted);
-  --fc-border-color: var(--grid);
-  --fc-today-bg-color: rgba(21, 75, 56, .26);
-  --fc-now-indicator-color: var(--maroon);
+  --fc-border-color: #2b3949;
+  --fc-today-bg-color: rgba(93, 169, 255, .10);
+  --fc-now-indicator-color: #ff7078;
 }
 
 #calendar .fc-scrollgrid,
-#calendar table,
-#calendar tbody,
-#calendar thead,
-#calendar .fc-timegrid-body,
-#calendar .fc-timegrid-cols,
-#calendar .fc-timegrid-slots {
-  background: #080d0c !important;
-}
-
 #calendar td,
 #calendar th,
-#calendar .fc-scrollgrid,
 #calendar .fc-timegrid-slot,
-#calendar .fc-timegrid-col,
 #calendar .fc-daygrid-day {
-  border-color: var(--grid) !important;
+  border-color: #2b3949 !important;
 }
 
 #calendar .fc-col-header-cell {
-  background:
-    linear-gradient(180deg, #75202b 0%, #5e1821 100%) !important;
-}
-
-#calendar .fc-col-header-cell.fc-day-today {
-  background:
-    linear-gradient(180deg, #174b39 0%, #103426 100%) !important;
+  background: #182330 !important;
 }
 
 #calendar .fc-col-header-cell-cushion {
   display: block;
   padding: 9px 6px;
-  color: var(--text-strong) !important;
+  color: var(--text) !important;
+  font-weight: 750;
   text-decoration: none;
-  font-weight: 850;
 }
 
 #calendar .fc-daygrid-day,
 #calendar .fc-daygrid-day-frame,
 #calendar .fc-daygrid-day-events,
-#calendar .fc-daygrid-day-bg {
-  background: #080d0c !important;
+#calendar .fc-daygrid-day-bg,
+#calendar .fc-timegrid-body,
+#calendar .fc-timegrid-cols,
+#calendar .fc-timegrid-col,
+#calendar .fc-timegrid-col-frame,
+#calendar .fc-timegrid-slots,
+#calendar .fc-timegrid-slot,
+#calendar .fc-timegrid-axis {
+  background: #0e151d !important;
 }
 
 #calendar .fc-day-other,
 #calendar .fc-day-other .fc-daygrid-day-frame {
-  background: #060a09 !important;
+  background: #0a1016 !important;
 }
 
 #calendar .fc-daygrid-day.fc-day-today,
 #calendar .fc-timegrid-col.fc-day-today {
-  background:
-    linear-gradient(180deg, rgba(18,67,50,.36), rgba(8,13,12,.92)) !important;
-}
-
-#calendar .fc-daygrid-day.fc-day-today {
-  box-shadow: inset 0 0 0 1px #cdb16e;
+  background: #172537 !important;
 }
 
 #calendar .fc-daygrid-day-number,
 #calendar .fc-timegrid-slot-label-cushion,
 #calendar .fc-timegrid-axis-cushion {
-  color: var(--text) !important;
+  color: #dce5ee !important;
 }
 
 #calendar .fc-day-other .fc-daygrid-day-number {
-  color: #746a57 !important;
-}
-
-#calendar .fc-timegrid-slot,
-#calendar .fc-timegrid-axis,
-#calendar .fc-timegrid-col-frame,
-#calendar .fc-timegrid-divider {
-  background: #080d0c !important;
-}
-
-#calendar .fc-timegrid-slot {
-  height: 2.65em;
-}
-
-#calendar .fc-timegrid-slot-minor {
-  border-top-color: #242922 !important;
+  color: #6f7d8d !important;
 }
 
 #calendar .fc-toolbar-title {
-  color: var(--text-strong) !important;
-  font-size: 1.4rem;
-  font-weight: 900;
+  color: var(--text) !important;
+  font-size: 1.3rem;
+  font-weight: 800;
 }
 
 #calendar .fc-button {
-  color: var(--text-strong) !important;
-  background: linear-gradient(180deg, #671b25, #471117) !important;
-  border-color: #8e2837 !important;
+  border: 1px solid var(--border) !important;
   border-radius: 8px !important;
-  font-weight: 850 !important;
+  background: #1a2532 !important;
+  color: var(--text) !important;
+  font-weight: 700 !important;
 }
 
 #calendar .fc-button:hover {
-  background: linear-gradient(180deg, #7e2330, #5c1720) !important;
+  background: #243244 !important;
 }
 
 #calendar .fc-today-button:not(:disabled) {
-  background: linear-gradient(180deg, #174b39, #103426) !important;
-  border-color: #286a50 !important;
+  background: #243244 !important;
 }
 
 #calendar .fc-button:disabled {
-  color: #7e7460 !important;
-  background: #141c19 !important;
-  border-color: #283c31 !important;
-  opacity: 1 !important;
+  opacity: .45 !important;
 }
 
-/* Event blocks */
-#calendar .fc-timegrid-event,
-#calendar .fc-daygrid-block-event {
-  border-radius: 6px !important;
-  border-width: 1px !important;
-  box-shadow: none !important;
+/* ==========================================================
+   Event colors - CSS classes, NOT FullCalendar inline colors
+   ========================================================== */
+
+#calendar .ht-event {
+  border: 1px solid transparent !important;
+  border-radius: 5px !important;
+  color: #fff !important;
+  cursor: pointer;
 }
 
-#calendar .fc-timegrid-event .fc-event-main,
-#calendar .fc-daygrid-block-event .fc-event-main {
-  color: var(--text-strong) !important;
-  padding: 3px 5px;
+#calendar .ht-event .fc-event-main,
+#calendar .ht-event .fc-event-time,
+#calendar .ht-event .fc-event-title {
+  color: #fff !important;
 }
 
-#calendar .fc-daygrid-dot-event {
-  color: var(--text) !important;
-  background: transparent !important;
+#calendar .ht-stick {
+  background: var(--stick) !important;
+  border-color: #3aa77a !important;
 }
 
-#calendar .fc-event-time,
-#calendar .fc-event-title {
-  color: inherit !important;
-  font-weight: 750;
+#calendar .ht-open {
+  background: var(--open) !important;
+  border-color: #9270bc !important;
 }
 
-/* ----------------------------------------------------------
-   Upcoming
-   ---------------------------------------------------------- */
+#calendar .ht-flow {
+  background: var(--flow) !important;
+  border-color: #c15a63 !important;
+}
 
-.upcoming-section { padding: 36px 0 54px; }
+/* Month/list style events should still show category colors */
+#calendar .ht-stick.fc-daygrid-dot-event {
+  background: rgba(45, 143, 102, .16) !important;
+  color: #dff8ec !important;
+}
+
+#calendar .ht-stick .fc-daygrid-event-dot {
+  border-color: var(--stick) !important;
+}
+
+#calendar .ht-open.fc-daygrid-dot-event {
+  background: rgba(118, 80, 165, .16) !important;
+  color: #eee6f8 !important;
+}
+
+#calendar .ht-open .fc-daygrid-event-dot {
+  border-color: var(--open) !important;
+}
+
+#calendar .ht-flow.fc-daygrid-dot-event {
+  background: rgba(164, 58, 69, .16) !important;
+  color: #fae5e7 !important;
+}
+
+#calendar .ht-flow .fc-daygrid-event-dot {
+  border-color: var(--flow) !important;
+}
+
+/* Upcoming list */
+.upcoming-section {
+  padding: 34px 0 50px;
+}
 
 .upcoming-heading {
   display: flex;
@@ -516,9 +368,9 @@ main::after {
 }
 
 #upcomingPageInfo {
-  min-width: 80px;
+  min-width: 78px;
   text-align: right;
-  font-size: .84rem;
+  font-size: .85rem;
 }
 
 .upcoming-list {
@@ -528,50 +380,49 @@ main::after {
 
 .upcoming-item {
   display: grid;
-  grid-template-columns: 122px 1fr auto;
+  grid-template-columns: 120px 1fr auto;
   gap: 18px;
   align-items: center;
   padding: 14px 16px;
-  border: 1px solid #483b2b;
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background:
-    linear-gradient(180deg, #111715 0%, #0c1110 100%);
+  background: var(--panel);
 }
 
 .upcoming-time,
 .upcoming-title {
-  color: var(--text-strong);
-  font-weight: 850;
+  color: var(--text);
+  font-weight: 800;
 }
 
 .upcoming-date,
 .upcoming-rink {
-  color: #a99d82;
+  color: var(--muted);
   font-size: .88rem;
 }
 
 .event-type {
-  color: var(--green-bright);
+  color: var(--accent);
   font-size: .8rem;
-  font-weight: 850;
+  font-weight: 800;
 }
-
-/* ----------------------------------------------------------
-   Dialog
-   ---------------------------------------------------------- */
 
 dialog {
   width: min(520px, calc(100% - 24px));
-  border: 1px solid #584930;
-  border-radius: 14px;
-  background: #0b1110;
-  color: var(--text);
   padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--text);
 }
 
-dialog::backdrop { background: rgba(0,0,0,.78); }
+dialog::backdrop {
+  background: rgba(0, 0, 0, .75);
+}
 
-.dialog-content { padding: 26px; }
+.dialog-content {
+  padding: 26px;
+}
 
 .dialog-close {
   position: absolute;
@@ -591,18 +442,11 @@ dialog::backdrop { background: rgba(0,0,0,.78); }
 }
 
 .empty {
-  border: 1px dashed #54472f;
-  border-radius: 12px;
   padding: 28px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
   text-align: center;
   color: var(--muted);
-}
-
-@media (max-width: 900px) {
-  main::before,
-  main::after {
-    display: none;
-  }
 }
 
 @media (max-width: 800px) {
@@ -612,21 +456,22 @@ dialog::backdrop { background: rgba(0,0,0,.78); }
   }
 
   .site-header {
-    padding-top: 76px;
     align-items: flex-start;
     flex-direction: column;
   }
 
-  h1 { font-size: 2.6rem; }
-
-  .filters { grid-template-columns: 1fr; }
+  .filters {
+    grid-template-columns: 1fr;
+  }
 
   .upcoming-heading {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .upcoming-pagination { width: 100%; }
+  .upcoming-pagination {
+    width: 100%;
+  }
 
   #upcomingPageInfo {
     margin-right: auto;
@@ -634,12 +479,14 @@ dialog::backdrop { background: rgba(0,0,0,.78); }
   }
 
   .upcoming-item {
-    grid-template-columns: 86px 1fr;
+    grid-template-columns: 84px 1fr;
   }
 
   .upcoming-item .button {
     grid-column: 1 / -1;
   }
 
-  .calendar-shell { padding: 8px; }
+  .calendar-shell {
+    padding: 8px;
+  }
 }
