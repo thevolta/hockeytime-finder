@@ -15,8 +15,13 @@ sources:
     provider: sportified
     state: AZ
     city: Tempe
-    url: "https://mullett.sportified.net/schedule?location%5B%5D=14&tags%5B%5D=Open+Hockey&tags%5B%5D=Stick+Time&tags%5B%5D=Flow"
-    register_fallback: "https://mullett.sportified.net/schedule"
+    pages:
+      - url: "https://mullett.sportified.net/pages/hockey/sticktime"
+        event_type: "Stick Time"
+      - url: "https://mullett.sportified.net/pages/hockey/adult-open-hockey"
+        event_type: "Open Hockey"
+      - url: "https://mullett.sportified.net/pages/hockey/flow-hockey"
+        event_type: "Flow Hockey"
 
   - name: AZ Ice Peoria
     provider: daysmart
@@ -25,7 +30,8 @@ sources:
     state: AZ
     city: Peoria
     days_ahead: 30
-    url: "https://azicepeoria.com/all-events/hockey-events/"
+    chunk_days: 3
+    chunk_workers: 5
     register_fallback: "https://apps.daysmartrecreation.com/dash/x/azice/programs/6/levels"
 
   - name: AZ Ice Arcadia
@@ -35,5 +41,6 @@ sources:
     state: AZ
     city: Phoenix
     days_ahead: 30
-    url: "https://azicearcadia.com/all-events/hockey-events/"
+    chunk_days: 3
+    chunk_workers: 5
     register_fallback: "https://apps.daysmartrecreation.com/dash/x/azice/programs/6/levels"

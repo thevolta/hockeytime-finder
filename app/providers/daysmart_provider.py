@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from html import unescape
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 import requests
@@ -89,18 +90,18 @@ def _parse_dt(value: Optional[str]) -> Optional[datetime]:
 
 class DaySmartProvider(BaseProvider):
     """
-    Direct DaySmart JSON:API provider.
+    Lightweight direct DaySmart JSON:API provider.
 
-    This replaces the old iframe/HTML parser. DaySmart's event endpoint returns
-    event summaries, resources and facilities in the `included` array, so the
-    provider can resolve event names, rink locations and availability without
-    scraping the rink web pages.
+    The previous version requested a 30-day company-wide payload in one shot.
+    This version:
+      - requests only the relationships we actually use
+      - splits the 30-day window into 3-day chunks
+      - fetches chunks concurrently
+      - still filters by configured facility ID locally
     """
 
     def __init__(self, source: dict):
         super().__init__(source)
-        self.session = requests.Session()
-        self.session.headers.update(HEADERS)
 
     def _base_params(self, start: datetime, end: datetime) -> dict:
         return {
@@ -113,41 +114,47 @@ class DaySmartProvider(BaseProvider):
             "filter[start__lte]": end.strftime("%Y-%m-%d %H:%M:%S"),
             "filter[resource.facility.my_sam_visible]": "true",
             "filter[eventType.code__not]": "L",
-            "filterRelations[comments.comment_type]": "public",
-            "include": (
-                "homeTeam.league.programType,"
-                "visitingTeam.league.programType,"
-                "summary,"
-                "resource.facility,"
-                "resourceArea,"
-                "comments,"
-                "eventType"
-            ),
+            "include": "summary,resource.facility",
         }
 
-    def _fetch_pages(self, start: datetime, end: datetime) -> list[dict]:
-        params = self._base_params(start, end)
+    def _fetch_chunk(self, start: datetime, end: datetime) -> list[dict]:
+        session = requests.Session()
+        session.headers.update(HEADERS)
+
         pages: list[dict] = []
+        params = self._base_params(start, end)
         page_number = 1
 
         while True:
             params["page[number]"] = page_number
-            response = self.session.get(API_URL, params=params, timeout=30)
+            response = session.get(API_URL, params=params, timeout=10)
             response.raise_for_status()
             payload = response.json()
             pages.append(payload)
 
-            page_meta = payload.get("meta", {}).get("page", {})
-            last_page = int(page_meta.get("last-page") or page_meta.get("last_page") or 1)
+            meta = payload.get("meta", {}).get("page", {})
+            last_page = int(meta.get("last-page") or meta.get("last_page") or 1)
+
             if page_number >= last_page:
                 break
 
             page_number += 1
-            if page_number > 50:
-                # Safety stop for an unexpected/broken pagination response.
+            if page_number > 20:
                 break
 
         return pages
+
+    def _chunks(self, start: datetime, end: datetime):
+        chunk_days = int(self.source.get("chunk_days", 3))
+        current = start
+
+        while current <= end:
+            chunk_end = min(
+                current + timedelta(days=chunk_days) - timedelta(seconds=1),
+                end,
+            )
+            yield current, chunk_end
+            current = chunk_end + timedelta(seconds=1)
 
     def _event_from_json(
         self,
@@ -155,7 +162,6 @@ class DaySmartProvider(BaseProvider):
         included: Dict[Tuple[str, str], dict],
     ) -> Optional[HockeyEvent]:
         attrs = item.get("attributes", {})
-        relationships = item.get("relationships", {})
 
         resource_ref = _relationship_id(item, "resource")
         resource = included.get(resource_ref, {}) if resource_ref else {}
@@ -165,14 +171,13 @@ class DaySmartProvider(BaseProvider):
         facility = included.get(facility_ref, {}) if facility_ref else {}
         facility_attrs = facility.get("attributes", {})
 
-        # Each configured AZ Ice source represents one facility. Filtering here
-        # means one DaySmart API implementation can serve Peoria, Arcadia, etc.
         expected_facility_id = self.source.get("facility_id")
         actual_facility_id = (
             str(facility.get("id"))
             if facility.get("id") is not None
             else str(resource_attrs.get("facility_id") or "")
         )
+
         if expected_facility_id is not None and actual_facility_id != str(expected_facility_id):
             return None
 
@@ -180,13 +185,8 @@ class DaySmartProvider(BaseProvider):
         summary = included.get(summary_ref, {}) if summary_ref else {}
         summary_attrs = summary.get("attributes", {})
 
-        home_team_ref = _relationship_id(item, "homeTeam")
-        home_team = included.get(home_team_ref, {}) if home_team_ref else {}
-        team_attrs = home_team.get("attributes", {})
-
         title = (
             summary_attrs.get("name")
-            or team_attrs.get("name")
             or attrs.get("desc")
             or "Hockey Event"
         )
@@ -194,8 +194,6 @@ class DaySmartProvider(BaseProvider):
         description = _strip_html(
             attrs.get("best_description")
             or attrs.get("description")
-            or team_attrs.get("best_description")
-            or team_attrs.get("description")
         )
 
         event_type = _classify(
@@ -213,24 +211,18 @@ class DaySmartProvider(BaseProvider):
             return None
 
         rink = facility_attrs.get("name") or self.source["name"]
-        if resource_attrs.get("name") and resource_attrs.get("name") not in rink:
-            # Keep the facility as the public-facing rink. The sheet/rink name is
-            # useful later if we add a separate surface/resource field.
-            pass
 
         capacity = attrs.get("register_capacity")
         registered_count = summary_attrs.get("registered_count")
         open_slots = summary_attrs.get("open_slots")
         registration_status = summary_attrs.get("registration_status")
 
-        # DaySmart uses -1 for "not limited / not applicable" in several fields.
         if isinstance(open_slots, int) and open_slots < 0:
             open_slots = None
         if isinstance(capacity, int) and capacity <= 0:
             capacity = None
 
         event_id = str(item.get("id"))
-        source_url = f"https://api.daysmartrecreation.com/v1/events/{event_id}"
 
         return HockeyEvent(
             id=f"daysmart-{self.source.get('company', 'azice')}-{event_id}",
@@ -242,7 +234,7 @@ class DaySmartProvider(BaseProvider):
             start=start,
             end=end,
             register_url=self.source.get("register_fallback"),
-            source_url=source_url,
+            source_url=f"{API_URL}/{event_id}",
             provider="daysmart",
             last_updated=datetime.now(timezone.utc),
             capacity=capacity,
@@ -253,16 +245,32 @@ class DaySmartProvider(BaseProvider):
 
     def fetch_events(self) -> List[HockeyEvent]:
         now = datetime.now(AZ_TZ)
-        days_ahead = int(self.source.get("days_ahead", 30))
-
-        # Start at local midnight today and pull a rolling window.
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        end = start + timedelta(days=days_ahead, hours=23, minutes=59, seconds=59)
+        end = start + timedelta(
+            days=int(self.source.get("days_ahead", 30)),
+            hours=23,
+            minutes=59,
+            seconds=59,
+        )
+
+        chunks = list(self._chunks(start, end))
+        pages: list[dict] = []
+
+        max_workers = min(int(self.source.get("chunk_workers", 5)), len(chunks))
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(self._fetch_chunk, chunk_start, chunk_end): (chunk_start, chunk_end)
+                for chunk_start, chunk_end in chunks
+            }
+
+            for future in as_completed(futures):
+                pages.extend(future.result())
 
         events: list[HockeyEvent] = []
         seen: set[str] = set()
 
-        for payload in self._fetch_pages(start, end):
+        for payload in pages:
             included = _index_included(payload.get("included", []))
 
             for item in payload.get("data", []):
@@ -276,15 +284,12 @@ class DaySmartProvider(BaseProvider):
         return events
 
     def diagnostic(self) -> dict:
-        """
-        Lightweight API diagnostic retained for /api/diagnostics/daysmart.
-        """
         now = datetime.now(AZ_TZ)
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        end = start + timedelta(days=1)
+        end = start + timedelta(days=1) - timedelta(seconds=1)
 
         try:
-            pages = self._fetch_pages(start, end)
+            pages = self._fetch_chunk(start, end)
             total = sum(len(page.get("data", [])) for page in pages)
             matching = 0
 
@@ -297,8 +302,6 @@ class DaySmartProvider(BaseProvider):
             return {
                 "source": self.source["name"],
                 "provider": "daysmart-api",
-                "api_url": API_URL,
-                "company": self.source.get("company", "azice"),
                 "facility_id": self.source.get("facility_id"),
                 "api_fetch_ok": True,
                 "raw_events_in_window": total,
@@ -308,8 +311,6 @@ class DaySmartProvider(BaseProvider):
             return {
                 "source": self.source["name"],
                 "provider": "daysmart-api",
-                "api_url": API_URL,
-                "company": self.source.get("company", "azice"),
                 "facility_id": self.source.get("facility_id"),
                 "api_fetch_ok": False,
                 "error": str(exc),
