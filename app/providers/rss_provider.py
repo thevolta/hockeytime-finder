@@ -3,6 +3,7 @@ from hashlib import sha1
 from typing import List
 
 import feedparser
+from bs4 import BeautifulSoup
 from dateutil import parser as dtparser
 
 from app.models.event import HockeyEvent
@@ -28,11 +29,14 @@ class RSSProvider(BaseProvider):
     def fetch_events(self) -> List[HockeyEvent]:
         feed = feedparser.parse(self.source["url"])
         events: list[HockeyEvent] = []
+        seen: set[str] = set()
 
         for entry in feed.entries:
             title = getattr(entry, "title", "").strip()
             summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
-            event_type = classify(f"{title} {summary}")
+            plain_summary = BeautifulSoup(summary or "", "html.parser").get_text(" ", strip=True)
+
+            event_type = classify(f"{title} {plain_summary}")
             if not event_type:
                 continue
 
@@ -42,16 +46,22 @@ class RSSProvider(BaseProvider):
                 or getattr(entry, "updated", None)
             )
             if not raw_date:
-                continue
+                # SportsEngine RSS titles commonly contain a full date/time.
+                raw_date = title
 
             try:
-                start = dtparser.parse(str(raw_date))
+                start = dtparser.parse(str(raw_date), fuzzy=True)
             except Exception:
                 continue
 
             link = getattr(entry, "link", None)
             uid_src = f'{self.source["name"]}|{title}|{start.isoformat()}'
             uid = sha1(uid_src.encode()).hexdigest()[:16]
+
+            # Some SportsEngine feeds repeat identical entries. Keep one copy.
+            if uid in seen:
+                continue
+            seen.add(uid)
 
             events.append(
                 HockeyEvent(

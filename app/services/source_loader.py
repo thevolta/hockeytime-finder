@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError
+from concurrent.futures import ThreadPoolExecutor, wait
 from pathlib import Path
 from typing import Optional
 
@@ -26,20 +26,11 @@ def load_sources() -> list[dict]:
 
 
 def _matches_source(source: dict, rink: Optional[str]) -> bool:
-    """
-    Pre-filter sources when a rink query is supplied.
-
-    Examples:
-      rink=AZ Ice            -> both AZ Ice sources
-      rink=AZ Ice Arcadia    -> Arcadia only
-      rink=Mullett           -> Mullett only
-    """
     if not rink:
         return True
 
     query = rink.strip().lower()
     name = source.get("name", "").lower()
-
     return query in name or name in query
 
 
@@ -48,15 +39,29 @@ def _fetch_source(source: dict):
     return provider_cls(source).fetch_events()
 
 
+def _dedupe_events(events):
+    # Provider-level dedupe is still useful, but keep a final safety net here.
+    unique = {}
+    for event in events:
+        key = (
+            event.id,
+            event.rink.lower(),
+            event.start.isoformat(),
+        )
+        unique[key] = event
+    return list(unique.values())
+
+
 def fetch_all_events(
     rink: Optional[str] = None,
-    source_timeout: int = 25,
+    source_timeout: int = 15,
 ):
     """
-    Fetch sources concurrently so one slow/broken rink does not block all others.
+    Run all requested providers concurrently.
 
-    `rink` is applied before provider execution when possible, reducing unnecessary
-    network requests for filtered API calls.
+    Unlike the previous implementation, this uses concurrent.futures.wait()
+    with a real wall-clock timeout. Slow providers are skipped instead of
+    blocking /api/events indefinitely.
     """
     sources = [
         source
@@ -64,36 +69,41 @@ def fetch_all_events(
         if _matches_source(source, rink)
     ]
 
-    events = []
-    errors = []
-
     if not sources:
         return [], []
 
-    # One worker per source is fine for this small provider set.
-    max_workers = min(len(sources), 8)
+    events = []
+    errors = []
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_map = {
-            executor.submit(_fetch_source, source): source
-            for source in sources
-        }
+    executor = ThreadPoolExecutor(max_workers=min(len(sources), 8))
+    future_map = {
+        executor.submit(_fetch_source, source): source
+        for source in sources
+    }
 
-        for future in as_completed(future_map):
-            source = future_map[future]
-            try:
-                result = future.result(timeout=source_timeout)
-                events.extend(result)
-            except TimeoutError:
-                errors.append({
-                    "source": source["name"],
-                    "error": f"Timed out after {source_timeout} seconds",
-                })
-            except Exception as exc:
-                errors.append({
-                    "source": source["name"],
-                    "error": str(exc),
-                })
+    done, not_done = wait(future_map.keys(), timeout=source_timeout)
 
+    for future in done:
+        source = future_map[future]
+        try:
+            events.extend(future.result())
+        except Exception as exc:
+            errors.append({
+                "source": source["name"],
+                "error": str(exc),
+            })
+
+    for future in not_done:
+        source = future_map[future]
+        future.cancel()
+        errors.append({
+            "source": source["name"],
+            "error": f"Provider exceeded {source_timeout}-second response budget",
+        })
+
+    # IMPORTANT: don't block the HTTP request waiting for slow worker threads.
+    executor.shutdown(wait=False, cancel_futures=True)
+
+    events = _dedupe_events(events)
     events.sort(key=lambda e: e.start)
     return events, errors
