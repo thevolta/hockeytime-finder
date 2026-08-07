@@ -406,6 +406,8 @@ document.addEventListener("DOMContentLoaded", () => {
       slotMinTime: "06:00:00",
       slotMaxTime: "24:00:00",
       allDaySlot: false,
+      dayMaxEvents: true,
+      eventDisplay: "auto",
       eventTimeFormat: {
         hour: "numeric",
         minute: "2-digit",
