@@ -20,14 +20,20 @@ sources:
 
   - name: AZ Ice Peoria
     provider: daysmart
+    company: azice
+    facility_id: 1
     state: AZ
     city: Peoria
+    days_ahead: 30
     url: "https://azicepeoria.com/all-events/hockey-events/"
     register_fallback: "https://apps.daysmartrecreation.com/dash/x/azice/programs/6/levels"
 
   - name: AZ Ice Arcadia
     provider: daysmart
+    company: azice
+    facility_id: 3
     state: AZ
     city: Phoenix
+    days_ahead: 30
     url: "https://azicearcadia.com/all-events/hockey-events/"
     register_fallback: "https://apps.daysmartrecreation.com/dash/x/azice/programs/6/levels"

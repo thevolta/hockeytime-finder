@@ -1,188 +1,316 @@
-import re
+from __future__ import annotations
+
 from datetime import datetime, timedelta, timezone
-from hashlib import sha1
-from typing import List, Optional
-from urllib.parse import urljoin
+from html import unescape
+import re
+from typing import Any, Dict, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 import requests
-from bs4 import BeautifulSoup
+from dateutil import parser as dtparser
 
 from app.models.event import HockeyEvent
 from app.providers.base import BaseProvider
 
+
+API_URL = "https://api.daysmartrecreation.com/v1/events"
 AZ_TZ = ZoneInfo("America/Phoenix")
+
 HEADERS = {
+    "Accept": "application/vnd.api+json",
+    "X-Requested-With": "XMLHttpRequest",
+    "Origin": "https://apps.daysmartrecreation.com",
+    "Referer": "https://apps.daysmartrecreation.com/",
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 Chrome/124 Safari/537.36"
-    )
+    ),
 }
 
-EVENT_TYPES = {
-    "Stick Time": ("stick time", "sticktime", "stick and puck", "stick & puck"),
-    "Open Hockey": ("pickup hockey", "open hockey", "adult open hockey"),
+EVENT_KEYWORDS = {
+    "Stick Time": (
+        "stick time",
+        "sticktime",
+        "stick & puck",
+        "stick and puck",
+    ),
+    "Open Hockey": (
+        "pick up hockey",
+        "pickup hockey",
+        "pick-up hockey",
+        "open hockey",
+        "adult open hockey",
+    ),
 }
 
-# Handles text such as:
-# Aug 8th Sat 1:00 pm 1h 30m Stick Time AZ Ice Arcadia
-DATE_TIME_RE = re.compile(
-    r"(?P<month>Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|"
-    r"Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
-    r"\s+(?P<day>\d{1,2})(?:st|nd|rd|th)?"
-    r".{0,40}?"
-    r"(?P<time>\d{1,2}:\d{2}\s*(?:am|pm))",
-    re.I | re.S,
-)
-DURATION_RE = re.compile(r"\b(?:(?P<hours>\d+)\s*h)?\s*(?:(?P<mins>\d+)\s*m)?\b", re.I)
+
+def _strip_html(value: Optional[str]) -> str:
+    if not value:
+        return ""
+    text = re.sub(r"<[^>]+>", " ", unescape(value))
+    return re.sub(r"\s+", " ", text).strip()
 
 
-def _classify(text: str) -> Optional[str]:
-    lowered = text.lower()
-    for event_type, needles in EVENT_TYPES.items():
-        if any(n in lowered for n in needles):
+def _classify(*values: Optional[str]) -> Optional[str]:
+    text = " ".join(v or "" for v in values).lower()
+    for event_type, needles in EVENT_KEYWORDS.items():
+        if any(needle in text for needle in needles):
             return event_type
     return None
 
 
-def _candidate_year(month: int) -> int:
-    now = datetime.now(AZ_TZ)
-    # DaySmart's legacy schedule pages often omit year. Pick the nearest
-    # reasonable occurrence, rolling into next year for old months.
-    year = now.year
-    candidate = datetime(year, month, 1, tzinfo=AZ_TZ)
-    if candidate < now - timedelta(days=120):
-        year += 1
-    return year
+def _index_included(items: list[dict]) -> Dict[Tuple[str, str], dict]:
+    return {
+        (str(item.get("type")), str(item.get("id"))): item
+        for item in items
+        if item.get("type") is not None and item.get("id") is not None
+    }
+
+
+def _relationship_id(item: dict, relationship: str) -> Optional[Tuple[str, str]]:
+    data = (
+        item.get("relationships", {})
+        .get(relationship, {})
+        .get("data")
+    )
+    if isinstance(data, dict) and data.get("type") and data.get("id") is not None:
+        return str(data["type"]), str(data["id"])
+    return None
+
+
+def _parse_dt(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    dt = dtparser.isoparse(value)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=AZ_TZ)
+    return dt.astimezone(AZ_TZ)
 
 
 class DaySmartProvider(BaseProvider):
-    def _get(self, url: str) -> requests.Response:
-        response = requests.get(url, timeout=25, headers=HEADERS)
-        response.raise_for_status()
-        return response
+    """
+    Direct DaySmart JSON:API provider.
 
-    def discover_calendar_url(self) -> Optional[str]:
-        response = self._get(self.source["url"])
-        soup = BeautifulSoup(response.text, "html.parser")
+    This replaces the old iframe/HTML parser. DaySmart's event endpoint returns
+    event summaries, resources and facilities in the `included` array, so the
+    provider can resolve event names, rink locations and availability without
+    scraping the rink web pages.
+    """
 
-        for iframe in soup.find_all("iframe", src=True):
-            src = urljoin(response.url, iframe["src"])
-            if "daysmartrecreation.com" in src.lower():
-                return src
+    def __init__(self, source: dict):
+        super().__init__(source)
+        self.session = requests.Session()
+        self.session.headers.update(HEADERS)
 
-        # Some pages put it in a data-src for lazy loading.
-        for iframe in soup.find_all("iframe"):
-            src = iframe.get("data-src")
-            if src and "daysmartrecreation.com" in src.lower():
-                return urljoin(response.url, src)
-
-        return self.source.get("calendar_url")
-
-    def diagnostic(self) -> dict:
-        calendar_url = self.discover_calendar_url()
-        result = {
-            "source": self.source["name"],
-            "public_page": self.source["url"],
-            "calendar_url": calendar_url,
-            "register_fallback": self.source.get("register_fallback"),
-            "calendar_fetch_ok": False,
-            "calendar_title": None,
-            "calendar_text_sample": None,
+    def _base_params(self, start: datetime, end: datetime) -> dict:
+        return {
+            "cache[save]": "false",
+            "page[size]": 100,
+            "page[number]": 1,
+            "sort": "start",
+            "company": self.source.get("company", "azice"),
+            "filter[start__gte]": start.strftime("%Y-%m-%d %H:%M:%S"),
+            "filter[start__lte]": end.strftime("%Y-%m-%d %H:%M:%S"),
+            "filter[resource.facility.my_sam_visible]": "true",
+            "filter[eventType.code__not]": "L",
+            "filterRelations[comments.comment_type]": "public",
+            "include": (
+                "homeTeam.league.programType,"
+                "visitingTeam.league.programType,"
+                "summary,"
+                "resource.facility,"
+                "resourceArea,"
+                "comments,"
+                "eventType"
+            ),
         }
 
-        if not calendar_url:
-            return result
+    def _fetch_pages(self, start: datetime, end: datetime) -> list[dict]:
+        params = self._base_params(start, end)
+        pages: list[dict] = []
+        page_number = 1
 
-        try:
-            response = self._get(calendar_url)
-            soup = BeautifulSoup(response.text, "html.parser")
-            result["calendar_fetch_ok"] = True
-            result["calendar_title"] = (
-                soup.title.get_text(" ", strip=True) if soup.title else None
-            )
-            text = " ".join(soup.stripped_strings)
-            result["calendar_text_sample"] = text[:1200]
-        except Exception as exc:
-            result["calendar_error"] = str(exc)
+        while True:
+            params["page[number]"] = page_number
+            response = self.session.get(API_URL, params=params, timeout=30)
+            response.raise_for_status()
+            payload = response.json()
+            pages.append(payload)
 
-        return result
+            page_meta = payload.get("meta", {}).get("page", {})
+            last_page = int(page_meta.get("last-page") or page_meta.get("last_page") or 1)
+            if page_number >= last_page:
+                break
+
+            page_number += 1
+            if page_number > 50:
+                # Safety stop for an unexpected/broken pagination response.
+                break
+
+        return pages
+
+    def _event_from_json(
+        self,
+        item: dict,
+        included: Dict[Tuple[str, str], dict],
+    ) -> Optional[HockeyEvent]:
+        attrs = item.get("attributes", {})
+        relationships = item.get("relationships", {})
+
+        resource_ref = _relationship_id(item, "resource")
+        resource = included.get(resource_ref, {}) if resource_ref else {}
+        resource_attrs = resource.get("attributes", {})
+
+        facility_ref = _relationship_id(resource, "facility") if resource else None
+        facility = included.get(facility_ref, {}) if facility_ref else {}
+        facility_attrs = facility.get("attributes", {})
+
+        # Each configured AZ Ice source represents one facility. Filtering here
+        # means one DaySmart API implementation can serve Peoria, Arcadia, etc.
+        expected_facility_id = self.source.get("facility_id")
+        actual_facility_id = (
+            str(facility.get("id"))
+            if facility.get("id") is not None
+            else str(resource_attrs.get("facility_id") or "")
+        )
+        if expected_facility_id is not None and actual_facility_id != str(expected_facility_id):
+            return None
+
+        summary_ref = _relationship_id(item, "summary")
+        summary = included.get(summary_ref, {}) if summary_ref else {}
+        summary_attrs = summary.get("attributes", {})
+
+        home_team_ref = _relationship_id(item, "homeTeam")
+        home_team = included.get(home_team_ref, {}) if home_team_ref else {}
+        team_attrs = home_team.get("attributes", {})
+
+        title = (
+            summary_attrs.get("name")
+            or team_attrs.get("name")
+            or attrs.get("desc")
+            or "Hockey Event"
+        )
+
+        description = _strip_html(
+            attrs.get("best_description")
+            or attrs.get("description")
+            or team_attrs.get("best_description")
+            or team_attrs.get("description")
+        )
+
+        event_type = _classify(
+            title,
+            description,
+            attrs.get("desc"),
+            summary_attrs.get("event_type"),
+        )
+        if not event_type:
+            return None
+
+        start = _parse_dt(summary_attrs.get("start_date") or attrs.get("start"))
+        end = _parse_dt(summary_attrs.get("end_date") or attrs.get("end"))
+        if not start:
+            return None
+
+        rink = facility_attrs.get("name") or self.source["name"]
+        if resource_attrs.get("name") and resource_attrs.get("name") not in rink:
+            # Keep the facility as the public-facing rink. The sheet/rink name is
+            # useful later if we add a separate surface/resource field.
+            pass
+
+        capacity = attrs.get("register_capacity")
+        registered_count = summary_attrs.get("registered_count")
+        open_slots = summary_attrs.get("open_slots")
+        registration_status = summary_attrs.get("registration_status")
+
+        # DaySmart uses -1 for "not limited / not applicable" in several fields.
+        if isinstance(open_slots, int) and open_slots < 0:
+            open_slots = None
+        if isinstance(capacity, int) and capacity <= 0:
+            capacity = None
+
+        event_id = str(item.get("id"))
+        source_url = f"https://api.daysmartrecreation.com/v1/events/{event_id}"
+
+        return HockeyEvent(
+            id=f"daysmart-{self.source.get('company', 'azice')}-{event_id}",
+            title=title,
+            event_type=event_type,
+            rink=rink,
+            city=self.source.get("city"),
+            state=self.source.get("state"),
+            start=start,
+            end=end,
+            register_url=self.source.get("register_fallback"),
+            source_url=source_url,
+            provider="daysmart",
+            last_updated=datetime.now(timezone.utc),
+            capacity=capacity,
+            registered_count=registered_count,
+            open_slots=open_slots,
+            registration_status=registration_status,
+        )
 
     def fetch_events(self) -> List[HockeyEvent]:
-        calendar_url = self.discover_calendar_url()
-        if not calendar_url:
-            return []
+        now = datetime.now(AZ_TZ)
+        days_ahead = int(self.source.get("days_ahead", 30))
 
-        response = self._get(calendar_url)
-        soup = BeautifulSoup(response.text, "html.parser")
-        text = "\n".join(soup.stripped_strings)
+        # Start at local midnight today and pull a rolling window.
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + timedelta(days=days_ahead, hours=23, minutes=59, seconds=59)
 
         events: list[HockeyEvent] = []
-        seen: set[tuple] = set()
+        seen: set[str] = set()
 
-        # Split into modest chunks so one keyword doesn't claim the whole page.
-        lines = [line.strip() for line in text.splitlines() if line.strip()]
-        for index, line in enumerate(lines):
-            event_type = _classify(line)
-            if not event_type:
-                continue
+        for payload in self._fetch_pages(start, end):
+            included = _index_included(payload.get("included", []))
 
-            context = " ".join(lines[max(0, index - 6): index + 7])
-            date_match = DATE_TIME_RE.search(context)
-            if not date_match:
-                continue
-
-            month = datetime.strptime(date_match.group("month")[:3], "%b").month
-            year = _candidate_year(month)
-            day = int(date_match.group("day"))
-            event_time = datetime.strptime(
-                date_match.group("time").lower().replace(" ", ""), "%I:%M%p"
-            ).time()
-            start = datetime(year, month, day, event_time.hour, event_time.minute, tzinfo=AZ_TZ)
-
-            end = None
-            duration_match = re.search(
-                r"(?:(\d+)\s*h)?\s*(?:(\d+)\s*m)?",
-                context,
-                re.I,
-            )
-            if duration_match and (duration_match.group(1) or duration_match.group(2)):
-                hours = int(duration_match.group(1) or 0)
-                minutes = int(duration_match.group(2) or 0)
-                if hours or minutes:
-                    end = start + timedelta(hours=hours, minutes=minutes)
-
-            title = line
-            rink = self.source["name"]
-            if "AZ Ice Arcadia" in context:
-                rink = "AZ Ice Arcadia"
-            elif "AZ Ice Peoria" in context:
-                rink = "AZ Ice Peoria"
-
-            key = (title.lower(), start.isoformat(), rink.lower())
-            if key in seen:
-                continue
-            seen.add(key)
-
-            uid_src = f"{rink}|{title}|{start.isoformat()}"
-            uid = sha1(uid_src.encode()).hexdigest()[:16]
-
-            events.append(
-                HockeyEvent(
-                    id=uid,
-                    title=title,
-                    event_type=event_type,
-                    rink=rink,
-                    city=self.source.get("city"),
-                    state=self.source.get("state"),
-                    start=start,
-                    end=end,
-                    register_url=self.source.get("register_fallback"),
-                    source_url=calendar_url,
-                    provider="daysmart",
-                    last_updated=datetime.now(timezone.utc),
-                )
-            )
+            for item in payload.get("data", []):
+                event = self._event_from_json(item, included)
+                if not event or event.id in seen:
+                    continue
+                seen.add(event.id)
+                events.append(event)
 
         events.sort(key=lambda event: event.start)
         return events
+
+    def diagnostic(self) -> dict:
+        """
+        Lightweight API diagnostic retained for /api/diagnostics/daysmart.
+        """
+        now = datetime.now(AZ_TZ)
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + timedelta(days=1)
+
+        try:
+            pages = self._fetch_pages(start, end)
+            total = sum(len(page.get("data", [])) for page in pages)
+            matching = 0
+
+            for payload in pages:
+                included = _index_included(payload.get("included", []))
+                for item in payload.get("data", []):
+                    if self._event_from_json(item, included):
+                        matching += 1
+
+            return {
+                "source": self.source["name"],
+                "provider": "daysmart-api",
+                "api_url": API_URL,
+                "company": self.source.get("company", "azice"),
+                "facility_id": self.source.get("facility_id"),
+                "api_fetch_ok": True,
+                "raw_events_in_window": total,
+                "matching_hockey_events": matching,
+            }
+        except Exception as exc:
+            return {
+                "source": self.source["name"],
+                "provider": "daysmart-api",
+                "api_url": API_URL,
+                "company": self.source.get("company", "azice"),
+                "facility_id": self.source.get("facility_id"),
+                "api_fetch_ok": False,
+                "error": str(exc),
+            }

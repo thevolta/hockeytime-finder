@@ -52,6 +52,20 @@ function displayDate(iso) {
   }).format(new Date(iso));
 }
 
+function availabilityText(event) {
+  if (Number.isInteger(event.open_slots) && event.open_slots >= 0) {
+    return `${event.open_slots} spots shown available`;
+  }
+  if (Number.isInteger(event.capacity) && event.capacity > 0) {
+    if (Number.isInteger(event.registered_count) && event.registered_count >= 0) {
+      const calculated = Math.max(0, event.capacity - event.registered_count);
+      return `${calculated} of ${event.capacity} spots calculated available`;
+    }
+    return `${event.capacity} player capacity`;
+  }
+  return "";
+}
+
 function fullCalendarEvents() {
   return filteredEvents().map(event => ({
     id: event.id,
@@ -101,10 +115,12 @@ function renderUpcoming() {
       <div class="upcoming-date">${displayDate(event.start)}</div>
     `;
 
+    const availability = availabilityText(event);
     const info = document.createElement("div");
     info.innerHTML = `
       <div class="upcoming-title">${escapeHtml(event.event_type)}</div>
       <div class="upcoming-rink">${escapeHtml(event.rink)}${event.city ? ` · ${escapeHtml(event.city)}` : ""}</div>
+      ${availability ? `<div class="upcoming-rink">${escapeHtml(availability)}</div>` : ""}
     `;
 
     const action = document.createElement("button");
@@ -131,10 +147,17 @@ function openEvent(event) {
   dialogTitle.textContent = event.title || event.event_type;
 
   const end = event.end ? `–${displayTime(event.end)}` : "";
+  const availability = availabilityText(event);
+  const status = event.registration_status
+    ? `<div>DaySmart status: ${escapeHtml(event.registration_status)}</div>`
+    : "";
+
   dialogMeta.innerHTML = `
     <div><strong>${escapeHtml(event.rink)}</strong></div>
     <div>${displayDate(event.start)} · ${displayTime(event.start)}${end}</div>
     <div>${[event.city, event.state].filter(Boolean).map(escapeHtml).join(", ")}</div>
+    ${availability ? `<div><strong>${escapeHtml(availability)}</strong></div>` : ""}
+    ${status}
   `;
 
   const destination = event.register_url || event.source_url;

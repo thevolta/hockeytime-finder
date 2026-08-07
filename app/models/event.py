@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 
 
 class HockeyEvent(BaseModel):
@@ -16,3 +16,10 @@ class HockeyEvent(BaseModel):
     source_url: Optional[str] = None
     provider: str
     last_updated: datetime
+
+    # Optional availability metadata. Providers that do not expose these simply
+    # leave them as None.
+    capacity: Optional[int] = None
+    registered_count: Optional[int] = None
+    open_slots: Optional[int] = None
+    registration_status: Optional[str] = None
