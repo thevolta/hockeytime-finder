@@ -12,12 +12,17 @@ def get_events(
     rink: str | None = Query(default=None),
     event_type: str | None = Query(default=None),
 ):
-    events, errors = fetch_all_events()
+    # Pass rink through so providers can be pre-filtered before network calls.
+    events, errors = fetch_all_events(rink=rink)
 
     if state:
         events = [e for e in events if (e.state or "").lower() == state.lower()]
+
+    # Keep the event-level filter too, since provider/source names and final rink
+    # names are not always identical.
     if rink:
         events = [e for e in events if rink.lower() in e.rink.lower()]
+
     if event_type:
         events = [
             e for e in events if event_type.lower() in e.event_type.lower()
@@ -41,6 +46,24 @@ def daysmart_diagnostics():
                     }
                 )
     return {"daysmart": results}
+
+
+@router.get("/api/status")
+def provider_status():
+    """
+    Quick source health view. Useful when the UI says Loading or reports errors.
+    """
+    events, errors = fetch_all_events(source_timeout=20)
+
+    counts = {}
+    for event in events:
+        counts[event.rink] = counts.get(event.rink, 0) + 1
+
+    return {
+        "event_count": len(events),
+        "rinks": counts,
+        "errors": errors,
+    }
 
 
 @router.get("/calendar.ics")
