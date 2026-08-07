@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b1220">
+  <title>HockeyTime Finder</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@7.0.2/all/global.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <div class="eyebrow">Arizona beta</div>
+      <h1>🏒 HockeyTime Finder</h1>
+      <p>Find Stick Time, Open Hockey and Flow Hockey in one place.</p>
+    </div>
+    <div class="header-actions">
+      <a class="button secondary" href="/calendar.ics">Subscribe / ICS</a>
+      <button class="button" id="refreshButton" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="filters" aria-label="Event filters">
+      <div class="filter-group">
+        <span class="filter-label">Event type</span>
+        <label><input type="checkbox" value="Stick Time" class="type-filter" checked> Stick Time</label>
+        <label><input type="checkbox" value="Open Hockey" class="type-filter" checked> Open Hockey</label>
+        <label><input type="checkbox" value="Flow Hockey" class="type-filter" checked> Flow Hockey</label>
+      </div>
+
+      <div class="filter-group">
+        <label for="rinkFilter" class="filter-label">Rink</label>
+        <select id="rinkFilter">
+          <option value="">All rinks</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="viewSelect" class="filter-label">View</label>
+        <select id="viewSelect">
+          <option value="timeGridWeek">Week</option>
+          <option value="dayGridMonth">Month</option>
+          <option value="listWeek">Upcoming</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="status-row">
+      <div>
+        <strong id="eventCount">0</strong>
+        <span>matching events</span>
+      </div>
+      <div id="statusText" class="muted" aria-live="polite">Loading schedules…</div>
+    </section>
+
+    <section class="calendar-shell">
+      <div id="calendar"></div>
+    </section>
+
+    <section class="upcoming-section">
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">Quick view</div>
+          <h2>Next sessions</h2>
+        </div>
+      </div>
+      <div id="upcomingList" class="upcoming-list"></div>
+    </section>
+  </main>
+
+  <dialog id="eventDialog">
+    <form method="dialog">
+      <button class="dialog-close" aria-label="Close">×</button>
+    </form>
+    <div class="dialog-content">
+      <div id="dialogType" class="event-type"></div>
+      <h2 id="dialogTitle"></h2>
+      <div class="event-meta" id="dialogMeta"></div>
+      <div class="dialog-actions">
+        <a id="dialogRegister" class="button" target="_blank" rel="noopener noreferrer">Register / View</a>
+        <button id="dialogAddCalendar" class="button secondary" type="button">Add to Calendar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
