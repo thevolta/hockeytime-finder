@@ -15,7 +15,6 @@ from app.providers.base import BaseProvider
 
 
 AZ_TZ = ZoneInfo("America/Phoenix")
-
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -29,7 +28,7 @@ ROW_RE = re.compile(
     r"(?P<date>\d{1,2}/\d{1,2}/\d{2,4})\s+"
     r"(?P<start>\d{1,2}:\d{2}\s*(?:am|pm))\s*-\s*"
     r"(?P<end>\d{1,2}:\d{2}\s*(?:am|pm))\s+"
-    r"(?P<title>.+)",
+    r"(?P<title>.+?)(?=\s+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+\d{1,2}/|\s+Show more events|$)",
     re.I,
 )
 
@@ -38,7 +37,11 @@ def classify(text: str) -> Optional[str]:
     lowered = text.lower()
     if "flow hockey" in lowered:
         return "Flow Hockey"
-    if "open hockey" in lowered or "pickup hockey" in lowered or "pick up hockey" in lowered:
+    if (
+        "open hockey" in lowered
+        or "pickup hockey" in lowered
+        or "pick up hockey" in lowered
+    ):
         return "Open Hockey"
     if "stick time" in lowered or "sticktime" in lowered:
         return "Stick Time"
@@ -47,22 +50,13 @@ def classify(text: str) -> Optional[str]:
 
 def clean_title(text: str) -> str:
     text = re.sub(r"\bRegister Online\b", "", text, flags=re.I)
-    text = re.sub(r"\s+", " ", text)
-    return text.strip(" |-") or "Hockey Event"
+    text = re.sub(r"\s+Show more events.*$", "", text, flags=re.I)
+    return re.sub(r"\s+", " ", text).strip(" |-") or "Hockey Event"
 
 
 class SportifiedProvider(BaseProvider):
-    """
-    Parse Mullett's public hockey pages instead of the filtered /schedule page,
-    which currently returns HTTP 403 to server-side requests.
-    """
-
     def _page_sources(self):
-        pages = self.source.get("pages")
-        if pages:
-            return pages
-
-        return [
+        return self.source.get("pages") or [
             {
                 "url": "https://mullett.sportified.net/pages/hockey/sticktime",
                 "event_type": "Stick Time",
@@ -78,43 +72,59 @@ class SportifiedProvider(BaseProvider):
         ]
 
     def _fetch_page(self, url: str) -> BeautifulSoup:
-        response = requests.get(url, timeout=10, headers=HEADERS)
+        response = requests.get(url, timeout=8, headers=HEADERS)
         response.raise_for_status()
         return BeautifulSoup(response.text, "html.parser")
 
-    def _rows(self, soup: BeautifulSoup):
-        # Prefer table rows when present.
+    def _row_nodes(self, soup: BeautifulSoup):
+        table_rows = []
         for tr in soup.find_all("tr"):
             text = " ".join(tr.stripped_strings)
             if ROW_RE.search(text):
-                yield tr, text
+                table_rows.append((tr, text))
 
-        # Fallback for layouts rendered as divs/paragraphs.
-        for node in soup.find_all(["div", "p", "li"]):
+        # If the page has actual rows, use only those. This prevents parent divs
+        # from producing duplicate/combined events.
+        if table_rows:
+            yield from table_rows
+            return
+
+        # Fallback: choose only the smallest matching nodes.
+        matches = []
+        for node in soup.find_all(["li", "p", "div"]):
             text = " ".join(node.stripped_strings)
-            if len(text) < 350 and ROW_RE.search(text):
+            if len(text) <= 260 and ROW_RE.search(text):
+                matches.append((node, text))
+
+        for node, text in matches:
+            child_has_match = any(
+                ROW_RE.search(" ".join(child.stripped_strings))
+                for child in node.find_all(["li", "p", "div"], recursive=False)
+            )
+            if not child_has_match:
                 yield node, text
 
     def fetch_events(self) -> List[HockeyEvent]:
         now = datetime.now(AZ_TZ)
         events: list[HockeyEvent] = []
-        seen: set[str] = set()
+        seen: set[tuple] = set()
 
         for page in self._page_sources():
             page_url = page["url"]
             soup = self._fetch_page(page_url)
 
-            for node, text in self._rows(soup):
+            for node, text in self._row_nodes(soup):
                 match = ROW_RE.search(text)
                 if not match:
                     continue
 
+                event_type = classify(match.group("title")) or page.get("event_type")
                 title = clean_title(match.group("title"))
-                event_type = classify(title) or page.get("event_type")
-                if not event_type:
-                    continue
 
-                event_date = datetime.strptime(match.group("date"), "%m/%d/%y").date()
+                date_text = match.group("date")
+                fmt = "%m/%d/%Y" if len(date_text.split("/")[-1]) == 4 else "%m/%d/%y"
+                event_date = datetime.strptime(date_text, fmt).date()
+
                 start_time = datetime.strptime(
                     match.group("start").lower().replace(" ", ""),
                     "%I:%M%p",
@@ -128,8 +138,6 @@ class SportifiedProvider(BaseProvider):
                 end = datetime.combine(event_date, end_time, tzinfo=AZ_TZ)
                 if end <= start:
                     end += timedelta(days=1)
-
-                # Ignore stale rows left on an informational page.
                 if end < now - timedelta(hours=2):
                     continue
 
@@ -137,15 +145,20 @@ class SportifiedProvider(BaseProvider):
                 if isinstance(node, Tag):
                     for anchor in node.find_all("a", href=True):
                         label = " ".join(anchor.stripped_strings).lower()
-                        if "register" in label:
-                            register_url = urljoin(page_url, anchor["href"])
+                        href = anchor.get("href", "")
+                        if "register" in label or "/products/" in href:
+                            register_url = urljoin(page_url, href)
                             break
 
-                uid_src = f"{self.source['name']}|{title}|{start.isoformat()}"
-                uid = sha1(uid_src.encode()).hexdigest()[:16]
-                if uid in seen:
+                # De-dupe by event type + exact time rather than title. That
+                # suppresses combined parent blocks even if their title differs.
+                key = (event_type, start.isoformat(), end.isoformat())
+                if key in seen:
                     continue
-                seen.add(uid)
+                seen.add(key)
+
+                uid_src = f"{self.source['name']}|{event_type}|{start.isoformat()}"
+                uid = sha1(uid_src.encode()).hexdigest()[:16]
 
                 events.append(
                     HockeyEvent(

@@ -3,6 +3,7 @@ from hashlib import sha1
 from typing import List
 
 import feedparser
+import requests
 from bs4 import BeautifulSoup
 from dateutil import parser as dtparser
 
@@ -16,6 +17,11 @@ KEYWORDS = {
     "Flow Hockey": ["flow hockey", "flow game"],
 }
 
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 HockeyTimeFinder/0.5",
+    "Accept": "application/rss+xml, application/xml, text/xml, */*",
+}
+
 
 def classify(text: str) -> str | None:
     lowered = text.lower()
@@ -27,14 +33,24 @@ def classify(text: str) -> str | None:
 
 class RSSProvider(BaseProvider):
     def fetch_events(self) -> List[HockeyEvent]:
-        feed = feedparser.parse(self.source["url"])
+        # Do not let feedparser perform an unbounded network request.
+        response = requests.get(
+            self.source["url"],
+            timeout=int(self.source.get("request_timeout", 8)),
+            headers=HEADERS,
+        )
+        response.raise_for_status()
+        feed = feedparser.parse(response.content)
+
         events: list[HockeyEvent] = []
         seen: set[str] = set()
 
         for entry in feed.entries:
             title = getattr(entry, "title", "").strip()
             summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
-            plain_summary = BeautifulSoup(summary or "", "html.parser").get_text(" ", strip=True)
+            plain_summary = BeautifulSoup(
+                summary or "", "html.parser"
+            ).get_text(" ", strip=True)
 
             event_type = classify(f"{title} {plain_summary}")
             if not event_type:
@@ -44,10 +60,8 @@ class RSSProvider(BaseProvider):
                 getattr(entry, "start", None)
                 or getattr(entry, "published", None)
                 or getattr(entry, "updated", None)
+                or title
             )
-            if not raw_date:
-                # SportsEngine RSS titles commonly contain a full date/time.
-                raw_date = title
 
             try:
                 start = dtparser.parse(str(raw_date), fuzzy=True)
@@ -58,7 +72,6 @@ class RSSProvider(BaseProvider):
             uid_src = f'{self.source["name"]}|{title}|{start.isoformat()}'
             uid = sha1(uid_src.encode()).hexdigest()[:16]
 
-            # Some SportsEngine feeds repeat identical entries. Keep one copy.
             if uid in seen:
                 continue
             seen.add(uid)
@@ -80,4 +93,5 @@ class RSSProvider(BaseProvider):
                 )
             )
 
+        events.sort(key=lambda event: event.start)
         return events

@@ -3,8 +3,11 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from html import unescape
+import json
 import re
-from typing import Dict, List, Optional, Tuple
+import threading
+import time
+from typing import Any, Dict, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 import requests
@@ -44,16 +47,30 @@ EVENT_KEYWORDS = {
     ),
 }
 
+_CACHE: dict[tuple, tuple[float, list[dict]]] = {}
+_CACHE_LOCK = threading.Lock()
 
-def _strip_html(value: Optional[str]) -> str:
-    if not value:
+
+def _safe_text(value: Any) -> str:
+    # Some DaySmart fields are strings on most events but objects on others.
+    if value is None:
         return ""
-    text = re.sub(r"<[^>]+>", " ", unescape(value))
+    if isinstance(value, str):
+        text = value
+    elif isinstance(value, (dict, list, tuple)):
+        try:
+            text = json.dumps(value, ensure_ascii=False)
+        except Exception:
+            text = str(value)
+    else:
+        text = str(value)
+
+    text = re.sub(r"<[^>]+>", " ", unescape(text))
     return re.sub(r"\s+", " ", text).strip()
 
 
-def _classify(*values: Optional[str]) -> Optional[str]:
-    text = " ".join(v or "" for v in values).lower()
+def _classify(*values: Any) -> Optional[str]:
+    text = " ".join(_safe_text(v) for v in values).lower()
     for event_type, needles in EVENT_KEYWORDS.items():
         if any(needle in text for needle in needles):
             return event_type
@@ -69,40 +86,22 @@ def _index_included(items: list[dict]) -> Dict[Tuple[str, str], dict]:
 
 
 def _relationship_id(item: dict, relationship: str) -> Optional[Tuple[str, str]]:
-    data = (
-        item.get("relationships", {})
-        .get(relationship, {})
-        .get("data")
-    )
+    data = item.get("relationships", {}).get(relationship, {}).get("data")
     if isinstance(data, dict) and data.get("type") and data.get("id") is not None:
         return str(data["type"]), str(data["id"])
     return None
 
 
-def _parse_dt(value: Optional[str]) -> Optional[datetime]:
+def _parse_dt(value: Any) -> Optional[datetime]:
     if not value:
         return None
-    dt = dtparser.isoparse(value)
+    dt = dtparser.isoparse(str(value))
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=AZ_TZ)
     return dt.astimezone(AZ_TZ)
 
 
 class DaySmartProvider(BaseProvider):
-    """
-    Lightweight direct DaySmart JSON:API provider.
-
-    The previous version requested a 30-day company-wide payload in one shot.
-    This version:
-      - requests only the relationships we actually use
-      - splits the 30-day window into 3-day chunks
-      - fetches chunks concurrently
-      - still filters by configured facility ID locally
-    """
-
-    def __init__(self, source: dict):
-        super().__init__(source)
-
     def _base_params(self, start: datetime, end: datetime) -> dict:
         return {
             "cache[save]": "false",
@@ -120,34 +119,26 @@ class DaySmartProvider(BaseProvider):
     def _fetch_chunk(self, start: datetime, end: datetime) -> list[dict]:
         session = requests.Session()
         session.headers.update(HEADERS)
-
-        pages: list[dict] = []
         params = self._base_params(start, end)
-        page_number = 1
+        pages: list[dict] = []
 
-        while True:
+        for page_number in range(1, 15):
             params["page[number]"] = page_number
-            response = session.get(API_URL, params=params, timeout=10)
+            response = session.get(API_URL, params=params, timeout=7)
             response.raise_for_status()
             payload = response.json()
             pages.append(payload)
 
             meta = payload.get("meta", {}).get("page", {})
             last_page = int(meta.get("last-page") or meta.get("last_page") or 1)
-
             if page_number >= last_page:
-                break
-
-            page_number += 1
-            if page_number > 20:
                 break
 
         return pages
 
     def _chunks(self, start: datetime, end: datetime):
-        chunk_days = int(self.source.get("chunk_days", 3))
+        chunk_days = int(self.source.get("chunk_days", 2))
         current = start
-
         while current <= end:
             chunk_end = min(
                 current + timedelta(days=chunk_days) - timedelta(seconds=1),
@@ -155,6 +146,34 @@ class DaySmartProvider(BaseProvider):
             )
             yield current, chunk_end
             current = chunk_end + timedelta(seconds=1)
+
+    def _fetch_company_pages(self, start: datetime, end: datetime) -> list[dict]:
+        company = self.source.get("company", "azice")
+        cache_ttl = int(self.source.get("cache_seconds", 300))
+        key = (company, start.isoformat(), end.isoformat())
+
+        with _CACHE_LOCK:
+            cached = _CACHE.get(key)
+            if cached and time.time() - cached[0] < cache_ttl:
+                return cached[1]
+
+            chunks = list(self._chunks(start, end))
+            pages: list[dict] = []
+
+            workers = min(
+                int(self.source.get("chunk_workers", 8)),
+                max(1, len(chunks)),
+            )
+            with ThreadPoolExecutor(max_workers=workers) as executor:
+                futures = [
+                    executor.submit(self._fetch_chunk, cstart, cend)
+                    for cstart, cend in chunks
+                ]
+                for future in as_completed(futures):
+                    pages.extend(future.result())
+
+            _CACHE[key] = (time.time(), pages)
+            return pages
 
     def _event_from_json(
         self,
@@ -177,7 +196,6 @@ class DaySmartProvider(BaseProvider):
             if facility.get("id") is not None
             else str(resource_attrs.get("facility_id") or "")
         )
-
         if expected_facility_id is not None and actual_facility_id != str(expected_facility_id):
             return None
 
@@ -185,20 +203,16 @@ class DaySmartProvider(BaseProvider):
         summary = included.get(summary_ref, {}) if summary_ref else {}
         summary_attrs = summary.get("attributes", {})
 
-        title = (
+        title = _safe_text(
             summary_attrs.get("name")
             or attrs.get("desc")
             or "Hockey Event"
         )
 
-        description = _strip_html(
-            attrs.get("best_description")
-            or attrs.get("description")
-        )
-
         event_type = _classify(
             title,
-            description,
+            attrs.get("best_description"),
+            attrs.get("description"),
             attrs.get("desc"),
             summary_attrs.get("event_type"),
         )
@@ -210,12 +224,14 @@ class DaySmartProvider(BaseProvider):
         if not start:
             return None
 
-        rink = facility_attrs.get("name") or self.source["name"]
+        rink = _safe_text(facility_attrs.get("name")) or self.source["name"]
 
         capacity = attrs.get("register_capacity")
         registered_count = summary_attrs.get("registered_count")
         open_slots = summary_attrs.get("open_slots")
-        registration_status = summary_attrs.get("registration_status")
+        registration_status = _safe_text(
+            summary_attrs.get("registration_status")
+        ) or None
 
         if isinstance(open_slots, int) and open_slots < 0:
             open_slots = None
@@ -246,33 +262,24 @@ class DaySmartProvider(BaseProvider):
     def fetch_events(self) -> List[HockeyEvent]:
         now = datetime.now(AZ_TZ)
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # Keep the live request small while the app still fetches sources on page
+        # load. Once we add the database/background refresh we can extend this.
+        days_ahead = int(self.source.get("days_ahead", 14))
         end = start + timedelta(
-            days=int(self.source.get("days_ahead", 30)),
+            days=days_ahead,
             hours=23,
             minutes=59,
             seconds=59,
         )
 
-        chunks = list(self._chunks(start, end))
-        pages: list[dict] = []
-
-        max_workers = min(int(self.source.get("chunk_workers", 5)), len(chunks))
-
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {
-                executor.submit(self._fetch_chunk, chunk_start, chunk_end): (chunk_start, chunk_end)
-                for chunk_start, chunk_end in chunks
-            }
-
-            for future in as_completed(futures):
-                pages.extend(future.result())
+        pages = self._fetch_company_pages(start, end)
 
         events: list[HockeyEvent] = []
         seen: set[str] = set()
 
         for payload in pages:
             included = _index_included(payload.get("included", []))
-
             for item in payload.get("data", []):
                 event = self._event_from_json(item, included)
                 if not event or event.id in seen:

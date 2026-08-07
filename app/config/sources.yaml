@@ -3,12 +3,14 @@ sources:
     provider: rss
     state: AZ
     city: Chandler
+    request_timeout: 8
     url: "https://www.icedenchandler.com/event_rss_feed?tags=2703965%2C2703970%2C2704012"
 
   - name: Ice Den Scottsdale
     provider: rss
     state: AZ
     city: Scottsdale
+    request_timeout: 8
     url: "https://www.icedenscottsdale.com/event_rss_feed?tags=2670384%2C2670407%2C2678497%2C2662957"
 
   - name: Mullett Arena
@@ -29,9 +31,10 @@ sources:
     facility_id: 1
     state: AZ
     city: Peoria
-    days_ahead: 30
-    chunk_days: 3
-    chunk_workers: 5
+    days_ahead: 14
+    chunk_days: 2
+    chunk_workers: 8
+    cache_seconds: 300
     register_fallback: "https://apps.daysmartrecreation.com/dash/x/azice/programs/6/levels"
 
   - name: AZ Ice Arcadia
@@ -40,7 +43,8 @@ sources:
     facility_id: 3
     state: AZ
     city: Phoenix
-    days_ahead: 30
-    chunk_days: 3
-    chunk_workers: 5
+    days_ahead: 14
+    chunk_days: 2
+    chunk_workers: 8
+    cache_seconds: 300
     register_fallback: "https://apps.daysmartrecreation.com/dash/x/azice/programs/6/levels"

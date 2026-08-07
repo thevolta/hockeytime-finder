@@ -28,7 +28,6 @@ def load_sources() -> list[dict]:
 def _matches_source(source: dict, rink: Optional[str]) -> bool:
     if not rink:
         return True
-
     query = rink.strip().lower()
     name = source.get("name", "").lower()
     return query in name or name in query
@@ -40,12 +39,13 @@ def _fetch_source(source: dict):
 
 
 def _dedupe_events(events):
-    # Provider-level dedupe is still useful, but keep a final safety net here.
     unique = {}
     for event in events:
+        # Stable cross-provider final de-dupe.
         key = (
-            event.id,
+            event.provider,
             event.rink.lower(),
+            event.event_type.lower(),
             event.start.isoformat(),
         )
         unique[key] = event
@@ -54,18 +54,10 @@ def _dedupe_events(events):
 
 def fetch_all_events(
     rink: Optional[str] = None,
-    source_timeout: int = 15,
+    source_timeout: int = 18,
 ):
-    """
-    Run all requested providers concurrently.
-
-    Unlike the previous implementation, this uses concurrent.futures.wait()
-    with a real wall-clock timeout. Slow providers are skipped instead of
-    blocking /api/events indefinitely.
-    """
     sources = [
-        source
-        for source in load_sources()
+        source for source in load_sources()
         if _matches_source(source, rink)
     ]
 
@@ -101,7 +93,6 @@ def fetch_all_events(
             "error": f"Provider exceeded {source_timeout}-second response budget",
         })
 
-    # IMPORTANT: don't block the HTTP request waiting for slow worker threads.
     executor.shutdown(wait=False, cancel_futures=True)
 
     events = _dedupe_events(events)
