@@ -54,16 +54,32 @@ function arizonaMinutes(iso) {
   return (Number(values.hour) * 60) + Number(values.minute);
 }
 
+function arizonaWeekday(iso) {
+  const date = new Date(iso);
+
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Phoenix",
+    weekday: "short",
+  }).format(date);
+
+  return weekday;
+}
+
 function overlapsWorkHours(event) {
-  // "No work hours" means only show sessions completely outside
-  // 9:00 AM–4:00 PM Arizona time.
+  // "No work hours" only applies Monday-Friday.
+  // Saturday and Sunday are always allowed.
+  const weekday = arizonaWeekday(event.start);
+
+  if (weekday === "Sat" || weekday === "Sun") {
+    return false;
+  }
+
   const workStart = 9 * 60;
   const workEnd = 16 * 60;
 
   const start = arizonaMinutes(event.start);
 
-  // Most sources include an end time. If one does not, assume one hour
-  // so a 3:45 PM session, for example, is still treated as overlapping work.
+  // If an event has no explicit end time, assume one hour.
   const end = event.end
     ? arizonaMinutes(event.end)
     : start + 60;
