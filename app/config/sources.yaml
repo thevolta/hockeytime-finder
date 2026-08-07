@@ -5,6 +5,7 @@ sources:
     city: Chandler
     request_timeout: 8
     url: "https://www.icedenchandler.com/event_rss_feed?tags=2703965%2C2703970%2C2704012"
+    register_fallback: "https://clients.mindbodyonline.com/classic/ws?studioid=884177&stype=-103&sTG=28&sView=week&sLoc=1&sTrn=100000014"
 
   - name: Ice Den Scottsdale
     provider: rss
@@ -12,6 +13,7 @@ sources:
     city: Scottsdale
     request_timeout: 8
     url: "https://www.icedenscottsdale.com/event_rss_feed?tags=2670384%2C2670407%2C2678497%2C2662957"
+    register_fallback: "https://clients.mindbodyonline.com/classic/ws?studioid=760588&stype=-103&sView=day&sLoc=0"
 
   - name: Mullett Arena
     provider: sportified

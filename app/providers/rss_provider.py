@@ -18,7 +18,7 @@ KEYWORDS = {
 }
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 HockeyTimeFinder/0.5",
+    "User-Agent": "Mozilla/5.0 HockeyTimeFinder/0.6",
     "Accept": "application/rss+xml, application/xml, text/xml, */*",
 }
 
@@ -33,13 +33,13 @@ def classify(text: str) -> str | None:
 
 class RSSProvider(BaseProvider):
     def fetch_events(self) -> List[HockeyEvent]:
-        # Do not let feedparser perform an unbounded network request.
         response = requests.get(
             self.source["url"],
             timeout=int(self.source.get("request_timeout", 8)),
             headers=HEADERS,
         )
         response.raise_for_status()
+
         feed = feedparser.parse(response.content)
 
         events: list[HockeyEvent] = []
@@ -47,9 +47,14 @@ class RSSProvider(BaseProvider):
 
         for entry in feed.entries:
             title = getattr(entry, "title", "").strip()
-            summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
+            summary = (
+                getattr(entry, "summary", "")
+                or getattr(entry, "description", "")
+            )
+
             plain_summary = BeautifulSoup(
-                summary or "", "html.parser"
+                summary or "",
+                "html.parser",
             ).get_text(" ", strip=True)
 
             event_type = classify(f"{title} {plain_summary}")
@@ -68,13 +73,23 @@ class RSSProvider(BaseProvider):
             except Exception:
                 continue
 
-            link = getattr(entry, "link", None)
-            uid_src = f'{self.source["name"]}|{title}|{start.isoformat()}'
+            event_page = getattr(entry, "link", None)
+
+            uid_src = (
+                f'{self.source["name"]}|{title}|{start.isoformat()}'
+            )
             uid = sha1(uid_src.encode()).hexdigest()[:16]
 
             if uid in seen:
                 continue
             seen.add(uid)
+
+            # Schedule/source stays on the RSS/SportsEngine side, but the
+            # user-facing registration button can point to Mindbody.
+            register_url = (
+                self.source.get("register_fallback")
+                or event_page
+            )
 
             events.append(
                 HockeyEvent(
@@ -86,8 +101,8 @@ class RSSProvider(BaseProvider):
                     state=self.source.get("state"),
                     start=start,
                     end=None,
-                    register_url=link,
-                    source_url=link or self.source["url"],
+                    register_url=register_url,
+                    source_url=event_page or self.source["url"],
                     provider="rss",
                     last_updated=datetime.now(timezone.utc),
                 )
