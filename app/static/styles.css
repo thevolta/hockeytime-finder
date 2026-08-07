@@ -504,3 +504,110 @@ dialog::backdrop {
     padding: 8px;
   }
 }
+
+
+/* =========================================================
+   Step 6.10 — readable current day + No Work Hours filter
+   ========================================================= */
+
+.filter-divider {
+  width: 1px;
+  height: 22px;
+  background: var(--border);
+  margin-inline: 2px;
+}
+
+.work-hours-filter {
+  color: var(--cream);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Week/month current-day header: dark green + high-contrast cream */
+#calendar .fc-col-header-cell.fc-day-today {
+  background: #285846 !important;
+}
+
+#calendar .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
+  color: #fff0c9 !important;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, .35);
+}
+
+/* Keep the current-day column subtle enough for event readability */
+#calendar .fc-timegrid-col.fc-day-today,
+#calendar .fc-daygrid-day.fc-day-today {
+  background: rgba(40, 88, 70, .20) !important;
+}
+
+/* FullCalendar list/upcoming view */
+#calendar .fc-list,
+#calendar .fc-list-table,
+#calendar .fc-list-table tbody {
+  background: #0d1110 !important;
+  border-color: var(--grid) !important;
+}
+
+#calendar .fc-list-day-cushion {
+  background: var(--maroon-dark) !important;
+  color: #fff0c9 !important;
+}
+
+#calendar .fc-list-day-text,
+#calendar .fc-list-day-side-text {
+  color: #fff0c9 !important;
+  text-decoration: none !important;
+  font-weight: 800;
+}
+
+/* Today's day heading in Upcoming/mobile view */
+#calendar .fc-list-day.fc-day-today .fc-list-day-cushion {
+  background: #285846 !important;
+  color: #fff0c9 !important;
+}
+
+#calendar .fc-list-day.fc-day-today .fc-list-day-text,
+#calendar .fc-list-day.fc-day-today .fc-list-day-side-text {
+  color: #fff0c9 !important;
+}
+
+#calendar .fc-list-event td {
+  border-color: var(--grid) !important;
+}
+
+/* Prevent FullCalendar's default white hover row on mobile */
+#calendar .fc-list-event:hover td {
+  background: rgba(232, 215, 173, .06) !important;
+}
+
+#calendar .fc-list-event-time,
+#calendar .fc-list-event-title {
+  color: #fff !important;
+}
+
+/* Hide the blue default list dot inside our category-colored rows */
+#calendar .ht-stick .fc-list-event-dot {
+  border-color: #55aa83 !important;
+}
+
+#calendar .ht-open .fc-list-event-dot {
+  border-color: #a37ab6 !important;
+}
+
+#calendar .ht-flow .fc-list-event-dot {
+  border-color: #d05b68 !important;
+}
+
+@media (max-width: 800px) {
+  .filter-divider {
+    display: none;
+  }
+
+  .work-hours-filter {
+    width: 100%;
+    padding-top: 4px;
+  }
+
+  #calendar .fc-list-day-cushion {
+    padding: 11px 12px !important;
+  }
+}

@@ -16,6 +16,7 @@ const rinkFilter = document.getElementById("rinkFilter");
 const viewSelect = document.getElementById("viewSelect");
 const upcomingList = document.getElementById("upcomingList");
 const refreshButton = document.getElementById("refreshButton");
+const noWorkHours = document.getElementById("noWorkHours");
 
 const upcomingPrev = document.getElementById("upcomingPrev");
 const upcomingNext = document.getElementById("upcomingNext");
@@ -32,14 +33,56 @@ function selectedTypes() {
   return [...document.querySelectorAll(".type-filter:checked")].map(el => el.value);
 }
 
+function arizonaMinutes(iso) {
+  const date = new Date(iso);
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Phoenix",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+
+  const values = Object.fromEntries(
+    parts
+      .filter(part => part.type !== "literal")
+      .map(part => [part.type, part.value])
+  );
+
+  return (Number(values.hour) * 60) + Number(values.minute);
+}
+
+function overlapsWorkHours(event) {
+  // "No work hours" means only show sessions completely outside
+  // 9:00 AM–4:00 PM Arizona time.
+  const workStart = 9 * 60;
+  const workEnd = 16 * 60;
+
+  const start = arizonaMinutes(event.start);
+
+  // Most sources include an end time. If one does not, assume one hour
+  // so a 3:45 PM session, for example, is still treated as overlapping work.
+  const end = event.end
+    ? arizonaMinutes(event.end)
+    : start + 60;
+
+  // Handle an event which crosses midnight.
+  const normalizedEnd = end <= start ? end + (24 * 60) : end;
+
+  return start < workEnd && normalizedEnd > workStart;
+}
+
 function filteredEvents() {
   const types = selectedTypes();
   const rink = rinkFilter.value;
+  const hideWorkHours = Boolean(noWorkHours?.checked);
 
   return rawEvents.filter(event => {
     const typeOk = types.includes(event.event_type);
     const rinkOk = !rink || event.rink === rink;
-    return typeOk && rinkOk;
+    const workHoursOk = !hideWorkHours || !overlapsWorkHours(event);
+
+    return typeOk && rinkOk && workHoursOk;
   });
 }
 
@@ -430,6 +473,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   rinkFilter.addEventListener("change", () => renderAll(true));
+
+  noWorkHours?.addEventListener("change", () => renderAll(true));
 
   viewSelect.value = calendar.view.type;
   viewSelect.addEventListener("change", () => {
