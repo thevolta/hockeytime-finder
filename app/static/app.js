@@ -479,45 +479,18 @@ async function manualRefresh() {
 }
 
 
-function enableSevenDayRange() {
-  calendar.setOption("visibleRange", currentDate => {
-    const start = new Date(currentDate);
-    start.setHours(0, 0, 0, 0);
-
-    const end = new Date(start);
-    end.setDate(end.getDate() + 7);
-
-    return { start, end };
-  });
-
-  calendar.setOption("dateIncrement", { days: 7 });
-}
-
-function disableSevenDayRange() {
-  calendar.setOption("visibleRange", null);
-  calendar.setOption("dateIncrement", null);
-}
 
 document.addEventListener("DOMContentLoaded", () => {
   calendar = new FullCalendar.Calendar(
     document.getElementById("calendar"),
     {
-      // Use only built-in FullCalendar views.
-      // "7 Day" is implemented via a dynamic visibleRange to avoid custom-view lockups.
-      initialView: window.innerWidth < 700 ? "listWeek" : "timeGridDay",
-      visibleRange(currentDate) {
-        const start = new Date(currentDate);
-        start.setHours(0, 0, 0, 0);
-
-        const end = new Date(start);
-        end.setDate(end.getDate() + 7);
-
-        return { start, end };
-      },
-      dateIncrement: { days: 7 },
+      // Only use built-in FullCalendar views.
+      // The rolling 7-day mode is simply a normal week whose firstDay is
+      // dynamically set to today's weekday.
+      initialView: window.innerWidth < 700 ? "listWeek" : "timeGridWeek",
+      firstDay: new Date().getDay(),
       height: "auto",
       nowIndicator: true,
-      firstDay: 0,
       slotMinTime: "06:00:00",
       slotMaxTime: "24:00:00",
       allDaySlot: false,
@@ -526,12 +499,6 @@ document.addEventListener("DOMContentLoaded", () => {
       eventTimeFormat: {
         hour: "numeric",
         minute: "2-digit",
-      },
-      datesSet() {
-        // Keep the selector on 7 Day while using the rolling range.
-        if (viewSelect && viewSelect.value === "sevenDay") {
-          viewSelect.value = "sevenDay";
-        }
       },
       headerToolbar: {
         left: "prev,next today",
@@ -556,21 +523,32 @@ document.addEventListener("DOMContentLoaded", () => {
   filterAM?.addEventListener("change", () => renderAll(true));
   filterPM?.addEventListener("change", () => renderAll(true));
 
-  viewSelect.value = calendar.view.type;
+  viewSelect.value = "sevenDay";
+
   viewSelect.addEventListener("change", () => {
     const selectedView = viewSelect.value;
 
     if (selectedView === "sevenDay") {
-      // Rolling 7-day range using built-in views only.
-      enableSevenDayRange();
+      // Built-in week view, but start it on today's weekday.
+      // Example: Saturday -> Friday.
+      calendar.setOption("firstDay", new Date().getDay());
       calendar.gotoDate(new Date());
-      calendar.changeView(window.innerWidth < 700 ? "listWeek" : "timeGridDay");
+      calendar.changeView(
+        window.innerWidth < 700 ? "listWeek" : "timeGridWeek"
+      );
       return;
     }
 
-    // Restore normal built-in behavior for the other views.
-    disableSevenDayRange();
-    calendar.changeView(selectedView);
+    // Traditional Week/Month/Upcoming use the normal Sunday-start week.
+    calendar.setOption("firstDay", 0);
+
+    if (selectedView === "timeGridWeek") {
+      calendar.changeView("timeGridWeek");
+    } else if (selectedView === "dayGridMonth") {
+      calendar.changeView("dayGridMonth");
+    } else if (selectedView === "listWeek") {
+      calendar.changeView("listWeek");
+    }
   });
 
   upcomingPrev.addEventListener("click", () => {
@@ -597,12 +575,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   refreshButton.addEventListener("click", manualRefresh);
 
-  // Hard default: every fresh page visit starts on a rolling 7-day range
-  // using built-in FullCalendar views only.
+  // Default view: today through the next 6 days.
+  // This is a built-in Week view with firstDay set to today's weekday.
   viewSelect.value = "sevenDay";
-  enableSevenDayRange();
+  calendar.setOption("firstDay", new Date().getDay());
   calendar.gotoDate(new Date());
-  calendar.changeView(window.innerWidth < 700 ? "listWeek" : "timeGridDay");
+  calendar.changeView(
+    window.innerWidth < 700 ? "listWeek" : "timeGridWeek"
+  );
 
   loadEvents();
 });
