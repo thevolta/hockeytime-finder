@@ -484,9 +484,8 @@ document.addEventListener("DOMContentLoaded", () => {
   calendar = new FullCalendar.Calendar(
     document.getElementById("calendar"),
     {
-      // Only use built-in FullCalendar views.
-      // The rolling 7-day mode is simply a normal week whose firstDay is
-      // dynamically set to today's weekday.
+      // Standard Week view, but start the week on today's weekday.
+      // Example: if today is Saturday, show Saturday through Friday.
       initialView: window.innerWidth < 700 ? "listWeek" : "timeGridWeek",
       firstDay: new Date().getDay(),
       height: "auto",
@@ -523,14 +522,13 @@ document.addEventListener("DOMContentLoaded", () => {
   filterAM?.addEventListener("change", () => renderAll(true));
   filterPM?.addEventListener("change", () => renderAll(true));
 
-  viewSelect.value = "sevenDay";
+  viewSelect.value = "timeGridWeek";
 
   viewSelect.addEventListener("change", () => {
     const selectedView = viewSelect.value;
 
-    if (selectedView === "sevenDay") {
-      // Built-in week view, but start it on today's weekday.
-      // Example: Saturday -> Friday.
+    if (selectedView === "timeGridWeek") {
+      // Keep Week as a rolling current-day-through-next-6-days view.
       calendar.setOption("firstDay", new Date().getDay());
       calendar.gotoDate(new Date());
       calendar.changeView(
@@ -539,14 +537,11 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Traditional Week/Month/Upcoming use the normal Sunday-start week.
-    calendar.setOption("firstDay", 0);
-
-    if (selectedView === "timeGridWeek") {
-      calendar.changeView("timeGridWeek");
-    } else if (selectedView === "dayGridMonth") {
+    // Month and Upcoming can use their normal built-in views.
+    if (selectedView === "dayGridMonth") {
       calendar.changeView("dayGridMonth");
     } else if (selectedView === "listWeek") {
+      calendar.setOption("firstDay", new Date().getDay());
       calendar.changeView("listWeek");
     }
   });
@@ -575,9 +570,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   refreshButton.addEventListener("click", manualRefresh);
 
-  // Default view: today through the next 6 days.
-  // This is a built-in Week view with firstDay set to today's weekday.
-  viewSelect.value = "sevenDay";
+  // Default: Week view starting today.
+  viewSelect.value = "timeGridWeek";
   calendar.setOption("firstDay", new Date().getDay());
   calendar.gotoDate(new Date());
   calendar.changeView(
