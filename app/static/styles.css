@@ -652,3 +652,26 @@ dialog::backdrop {
     padding-top: 0;
   }
 }
+
+
+/* Step 6.13 — Adult Skills */
+#calendar .ht-skills {
+  background: #a67c3f !important;
+  border-color: #c39b5b !important;
+}
+
+#calendar .ht-skills .fc-event-main,
+#calendar .ht-skills .fc-event-time,
+#calendar .ht-skills .fc-event-title {
+  color: #fff7e2 !important;
+}
+
+#calendar .fc-daygrid-dot-event.ht-skills {
+  background: rgba(166, 124, 63, .16) !important;
+  color: #fff0c9 !important;
+}
+
+#calendar .ht-skills .fc-daygrid-event-dot,
+#calendar .ht-skills .fc-list-event-dot {
+  border-color: #c39b5b !important;
+}

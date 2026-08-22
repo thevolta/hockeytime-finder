@@ -167,6 +167,8 @@ function fullCalendarEvents() {
       eventClass += " ht-open";
     } else if (event.event_type === "Flow Hockey") {
       eventClass += " ht-flow";
+    } else if (event.event_type === "Adult Skills") {
+      eventClass += " ht-skills";
     }
 
     return {
@@ -286,10 +288,15 @@ function openEvent(event) {
     ? `<div>Registration status: ${escapeHtml(event.registration_status)}</div>`
     : "";
 
+  const registered = Number.isInteger(event.registered_count)
+    ? `<div><strong>Registered:</strong> ${event.registered_count}</div>`
+    : "";
+
   dialogMeta.innerHTML = `
     <div><strong>${escapeHtml(event.rink)}</strong></div>
     <div>${displayDate(event.start)} · ${displayTime(event.start)}${end}</div>
     <div>${[event.city, event.state].filter(Boolean).map(escapeHtml).join(", ")}</div>
+    ${registered}
     ${availability ? `<div><strong>${escapeHtml(availability)}</strong></div>` : ""}
     ${status}
   `;

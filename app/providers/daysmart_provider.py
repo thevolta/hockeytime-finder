@@ -47,6 +47,15 @@ EVENT_KEYWORDS = {
     ),
 }
 
+
+# These two DaySmart teams are the specific Adult Skills programs requested.
+# Facility is resolved from the event resource itself, so the same code works
+# whether the session is at Gilbert or Peoria.
+ADULT_SKILLS_TEAMS = {
+    "14006": "https://apps.daysmartrecreation.com/dash/x/azice/teams/14006",
+    "12809": "https://apps.daysmartrecreation.com/dash/x/azice/teams/12809",
+}
+
 _CACHE: dict[tuple, tuple[float, list[dict]]] = {}
 _CACHE_LOCK = threading.Lock()
 
@@ -113,7 +122,7 @@ class DaySmartProvider(BaseProvider):
             "filter[start__lte]": end.strftime("%Y-%m-%d %H:%M:%S"),
             "filter[resource.facility.my_sam_visible]": "true",
             "filter[eventType.code__not]": "L",
-            "include": "summary,resource.facility",
+            "include": "summary,resource.facility,homeTeam",
         }
 
     def _fetch_chunk(self, start: datetime, end: datetime) -> list[dict]:
@@ -203,19 +212,35 @@ class DaySmartProvider(BaseProvider):
         summary = included.get(summary_ref, {}) if summary_ref else {}
         summary_attrs = summary.get("attributes", {})
 
+        home_team_ref = _relationship_id(item, "homeTeam")
+        home_team_id = home_team_ref[1] if home_team_ref else None
+        home_team = included.get(home_team_ref, {}) if home_team_ref else {}
+        home_team_attrs = home_team.get("attributes", {})
+
+        is_adult_skills = home_team_id in ADULT_SKILLS_TEAMS
+
         title = _safe_text(
             summary_attrs.get("name")
+            or home_team_attrs.get("name")
             or attrs.get("desc")
             or "Hockey Event"
         )
 
-        event_type = _classify(
-            title,
-            attrs.get("best_description"),
-            attrs.get("description"),
-            attrs.get("desc"),
-            summary_attrs.get("event_type"),
-        )
+        if is_adult_skills:
+            event_type = "Adult Skills"
+            # Keep a useful provider title if DaySmart already names the
+            # session, otherwise normalize it to Adult Skills.
+            if not title or title == "Hockey Event":
+                title = "Adult Skills"
+        else:
+            event_type = _classify(
+                title,
+                attrs.get("best_description"),
+                attrs.get("description"),
+                attrs.get("desc"),
+                summary_attrs.get("event_type"),
+            )
+
         if not event_type:
             return None
 
@@ -226,8 +251,19 @@ class DaySmartProvider(BaseProvider):
 
         rink = _safe_text(facility_attrs.get("name")) or self.source["name"]
 
-        capacity = attrs.get("register_capacity")
+        capacity = (
+            attrs.get("register_capacity")
+            or home_team_attrs.get("register_capacity")
+            or home_team_attrs.get("capacity")
+        )
         registered_count = summary_attrs.get("registered_count")
+        if registered_count is None:
+            registered_count = (
+                home_team_attrs.get("registered_count")
+                or home_team_attrs.get("registration_count")
+                or home_team_attrs.get("member_count")
+            )
+
         open_slots = summary_attrs.get("open_slots")
         registration_status = _safe_text(
             summary_attrs.get("registration_status")
@@ -240,6 +276,12 @@ class DaySmartProvider(BaseProvider):
 
         event_id = str(item.get("id"))
 
+        register_url = (
+            ADULT_SKILLS_TEAMS.get(home_team_id)
+            if is_adult_skills
+            else self.source.get("register_fallback")
+        )
+
         return HockeyEvent(
             id=f"daysmart-{self.source.get('company', 'azice')}-{event_id}",
             title=title,
@@ -249,7 +291,7 @@ class DaySmartProvider(BaseProvider):
             state=self.source.get("state"),
             start=start,
             end=end,
-            register_url=self.source.get("register_fallback"),
+            register_url=register_url,
             source_url=f"{API_URL}/{event_id}",
             provider="daysmart",
             last_updated=datetime.now(timezone.utc),
