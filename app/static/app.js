@@ -482,12 +482,13 @@ document.addEventListener("DOMContentLoaded", () => {
   calendar = new FullCalendar.Calendar(
     document.getElementById("calendar"),
     {
-      // Rolling 7-day view: starts on the selected/current day instead of
-      // aligning to Sunday/Monday like the normal Week view.
+      // Rolling 7-day view: always starts on the current day.
+      // Use concrete FullCalendar base views so switching is reliable.
       initialView: "sevenDay",
+      initialDate: new Date(),
       views: {
         sevenDay: {
-          type: window.innerWidth < 700 ? "list" : "timeGrid",
+          type: window.innerWidth < 700 ? "listDay" : "timeGridDay",
           duration: { days: 7 },
           dateAlignment: "day",
           dateIncrement: { days: 7 },
@@ -508,7 +509,10 @@ document.addEventListener("DOMContentLoaded", () => {
       },
       viewDidMount(info) {
         // Keep the dropdown synchronized if FullCalendar changes views.
-        if (viewSelect && [...viewSelect.options].some(option => option.value === info.view.type)) {
+        if (
+          viewSelect &&
+          [...viewSelect.options].some(option => option.value === info.view.type)
+        ) {
           viewSelect.value = info.view.type;
         }
       },
@@ -537,7 +541,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
   viewSelect.value = calendar.view.type;
   viewSelect.addEventListener("change", () => {
-    calendar.changeView(viewSelect.value);
+    const selectedView = viewSelect.value;
+
+    if (selectedView === "sevenDay") {
+      // "7 Day" means upcoming seven days, not the current calendar week.
+      // Reset to today every time the user selects it.
+      calendar.gotoDate(new Date());
+      calendar.changeView("sevenDay");
+      return;
+    }
+
+    calendar.changeView(selectedView);
   });
 
   upcomingPrev.addEventListener("click", () => {
@@ -563,6 +577,12 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   refreshButton.addEventListener("click", manualRefresh);
+
+  // Hard default: every fresh page visit starts on the rolling 7-day view
+  // beginning today, regardless of FullCalendar/browser state.
+  viewSelect.value = "sevenDay";
+  calendar.gotoDate(new Date());
+  calendar.changeView("sevenDay");
 
   loadEvents();
 });
