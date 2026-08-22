@@ -700,3 +700,42 @@ dialog::backdrop {
     text-align: center;
   }
 }
+
+
+/* Step 6.15 — Prominent Discord button */
+.discord-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  background: #5865f2;
+  border-color: #7b84f7;
+  color: #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, .05) inset,
+    0 6px 18px rgba(88, 101, 242, .24);
+  font-weight: 800;
+}
+
+.discord-button:hover {
+  background: #6875f5;
+  border-color: #9ba2fa;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, .08) inset,
+    0 8px 22px rgba(88, 101, 242, .34);
+}
+
+.discord-icon {
+  width: 21px;
+  height: 17px;
+  flex: 0 0 auto;
+  display: block;
+}
+
+@media (max-width: 800px) {
+  .discord-button {
+    min-height: 44px;
+  }
+}
