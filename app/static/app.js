@@ -482,8 +482,18 @@ document.addEventListener("DOMContentLoaded", () => {
   calendar = new FullCalendar.Calendar(
     document.getElementById("calendar"),
     {
-      initialView:
-        window.innerWidth < 700 ? "listWeek" : "timeGridWeek",
+      // Rolling 7-day view: starts on the selected/current day instead of
+      // aligning to Sunday/Monday like the normal Week view.
+      initialView: "sevenDay",
+      views: {
+        sevenDay: {
+          type: window.innerWidth < 700 ? "list" : "timeGrid",
+          duration: { days: 7 },
+          dateAlignment: "day",
+          dateIncrement: { days: 7 },
+          buttonText: "7 Day",
+        },
+      },
       height: "auto",
       nowIndicator: true,
       firstDay: 0,
@@ -495,6 +505,12 @@ document.addEventListener("DOMContentLoaded", () => {
       eventTimeFormat: {
         hour: "numeric",
         minute: "2-digit",
+      },
+      viewDidMount(info) {
+        // Keep the dropdown synchronized if FullCalendar changes views.
+        if (viewSelect && [...viewSelect.options].some(option => option.value === info.view.type)) {
+          viewSelect.value = info.view.type;
+        }
       },
       headerToolbar: {
         left: "prev,next today",
