@@ -478,23 +478,43 @@ async function manualRefresh() {
   }
 }
 
+
+function enableSevenDayRange() {
+  calendar.setOption("visibleRange", currentDate => {
+    const start = new Date(currentDate);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+
+    return { start, end };
+  });
+
+  calendar.setOption("dateIncrement", { days: 7 });
+}
+
+function disableSevenDayRange() {
+  calendar.setOption("visibleRange", null);
+  calendar.setOption("dateIncrement", null);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   calendar = new FullCalendar.Calendar(
     document.getElementById("calendar"),
     {
-      // Rolling 7-day view: always starts on the current day.
-      // Use concrete FullCalendar base views so switching is reliable.
-      initialView: "sevenDay",
-      initialDate: new Date(),
-      views: {
-        sevenDay: {
-          type: window.innerWidth < 700 ? "listDay" : "timeGridDay",
-          duration: { days: 7 },
-          dateAlignment: "day",
-          dateIncrement: { days: 7 },
-          buttonText: "7 Day",
-        },
+      // Use only built-in FullCalendar views.
+      // "7 Day" is implemented via a dynamic visibleRange to avoid custom-view lockups.
+      initialView: window.innerWidth < 700 ? "listWeek" : "timeGridDay",
+      visibleRange(currentDate) {
+        const start = new Date(currentDate);
+        start.setHours(0, 0, 0, 0);
+
+        const end = new Date(start);
+        end.setDate(end.getDate() + 7);
+
+        return { start, end };
       },
+      dateIncrement: { days: 7 },
       height: "auto",
       nowIndicator: true,
       firstDay: 0,
@@ -507,13 +527,10 @@ document.addEventListener("DOMContentLoaded", () => {
         hour: "numeric",
         minute: "2-digit",
       },
-      viewDidMount(info) {
-        // Keep the dropdown synchronized if FullCalendar changes views.
-        if (
-          viewSelect &&
-          [...viewSelect.options].some(option => option.value === info.view.type)
-        ) {
-          viewSelect.value = info.view.type;
+      datesSet() {
+        // Keep the selector on 7 Day while using the rolling range.
+        if (viewSelect && viewSelect.value === "sevenDay") {
+          viewSelect.value = "sevenDay";
         }
       },
       headerToolbar: {
@@ -544,13 +561,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const selectedView = viewSelect.value;
 
     if (selectedView === "sevenDay") {
-      // "7 Day" means upcoming seven days, not the current calendar week.
-      // Reset to today every time the user selects it.
+      // Rolling 7-day range using built-in views only.
+      enableSevenDayRange();
       calendar.gotoDate(new Date());
-      calendar.changeView("sevenDay");
+      calendar.changeView(window.innerWidth < 700 ? "listWeek" : "timeGridDay");
       return;
     }
 
+    // Restore normal built-in behavior for the other views.
+    disableSevenDayRange();
     calendar.changeView(selectedView);
   });
 
@@ -578,11 +597,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   refreshButton.addEventListener("click", manualRefresh);
 
-  // Hard default: every fresh page visit starts on the rolling 7-day view
-  // beginning today, regardless of FullCalendar/browser state.
+  // Hard default: every fresh page visit starts on a rolling 7-day range
+  // using built-in FullCalendar views only.
   viewSelect.value = "sevenDay";
+  enableSevenDayRange();
   calendar.gotoDate(new Date());
-  calendar.changeView("sevenDay");
+  calendar.changeView(window.innerWidth < 700 ? "listWeek" : "timeGridDay");
 
   loadEvents();
 });
