@@ -1,5 +1,7 @@
 from datetime import datetime
 from typing import Optional
+
+from pydantic import Field
 from pydantic import BaseModel
 
 
@@ -23,3 +25,4 @@ class HockeyEvent(BaseModel):
     registered_count: Optional[int] = None
     open_slots: Optional[int] = None
     registration_status: Optional[str] = None
+    registration_options: list[dict] = Field(default_factory=list)

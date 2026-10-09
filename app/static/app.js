@@ -292,12 +292,26 @@ function openEvent(event) {
     ? `<div><strong>Registered:</strong> ${event.registered_count}</div>`
     : "";
 
+  const registrationOptions = Array.isArray(event.registration_options) ? event.registration_options : [];
+  const optionRows = registrationOptions.map(option => {
+    const name = escapeHtml(option.name || "Option");
+    const count = Number.isInteger(option.registered) && Number.isInteger(option.capacity)
+      ? `${option.registered} / ${option.capacity} registered · ${option.available} available`
+      : "Availability unknown";
+    const price = escapeHtml(option.price || "");
+    return `<div style="display:flex;justify-content:space-between;gap:12px;margin-top:5px;flex-wrap:wrap">
+      <span><strong>${name}</strong> · ${escapeHtml(count)}</span><span>${price}</span>
+    </div>`;
+  }).join("");
+  const optionsHtml = optionRows ? `<div style="margin-top:10px"><strong>Registration options</strong>${optionRows}</div>` : "";
+
   dialogMeta.innerHTML = `
     <div><strong>${escapeHtml(event.rink)}</strong></div>
     <div>${displayDate(event.start)} · ${displayTime(event.start)}${end}</div>
     <div>${[event.city, event.state].filter(Boolean).map(escapeHtml).join(", ")}</div>
-    ${registered}
-    ${availability ? `<div><strong>${escapeHtml(availability)}</strong></div>` : ""}
+    ${registrationOptions.length ? "" : registered}
+    ${registrationOptions.length ? "" : (availability ? `<div><strong>${escapeHtml(availability)}</strong></div>` : "")}
+    ${optionsHtml}
     ${status}
   `;
 

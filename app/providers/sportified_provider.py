@@ -79,6 +79,56 @@ class SportifiedProvider(BaseProvider):
         response.raise_for_status()
         return BeautifulSoup(response.text, "html.parser")
 
+    @staticmethod
+    def parse_registration_options(soup: BeautifulSoup) -> list[dict]:
+        """Read Sportified product option rows (not the public roster)."""
+        options = []
+        form = soup.select_one("form#register-form")
+        if form is None:
+            return options
+        for row in form.select("table tbody tr"):
+            cells = row.find_all("td", recursive=False)
+            if len(cells) < 3:
+                continue
+            name_node = cells[0].select_one(".title")
+            availability_node = cells[1].select_one(".availability")
+            if name_node is None or availability_node is None:
+                continue
+            name = " ".join(name_node.stripped_strings).strip()
+            match = re.search(r"(\d+)\s+of\s+(\d+)\s+available", " ".join(availability_node.stripped_strings), re.I)
+            if not name or not match:
+                continue
+            available, capacity = map(int, match.groups())
+            price = " ".join(cells[2].stripped_strings).strip()
+            link = row.select_one('a[href*="/variants/"]')
+            options.append({
+                "name": name,
+                "registered": max(0, capacity - available),
+                "capacity": capacity,
+                "available": available,
+                "price": price,
+                "register_url": urljoin("https://mullett.sportified.net", link["href"]) if link else None,
+            })
+        return options
+
+    def _attach_registration_options(self, events: list[HockeyEvent]):
+        """Fetch product pages once per URL during the scheduled refresh."""
+        cached: dict[str, list[dict]] = {}
+        for event in events:
+            url = event.register_url or ""
+            if not re.search(r"mullett\.sportified\.net/products/\d+", url):
+                continue
+            if url not in cached:
+                try:
+                    cached[url] = self.parse_registration_options(self._fetch_page(url))
+                except requests.RequestException:
+                    cached[url] = []
+            event.registration_options = cached[url]
+            if cached[url]:
+                event.capacity = sum(item["capacity"] for item in cached[url])
+                event.registered_count = sum(item["registered"] for item in cached[url])
+                event.open_slots = sum(item["available"] for item in cached[url])
+
     def _row_nodes(self, soup: BeautifulSoup):
         table_rows = []
         for tr in soup.find_all("tr"):
@@ -183,6 +233,7 @@ class SportifiedProvider(BaseProvider):
                 )
 
         events.extend(self._fetch_schedule_skills(now, seen))
+        self._attach_registration_options(events)
         events.sort(key=lambda event: event.start)
         return events
 
