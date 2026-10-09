@@ -193,23 +193,26 @@ class SportifiedProvider(BaseProvider):
         for offset in (0, 7, 14, 21, 28):
             date = (now + timedelta(days=offset)).date().isoformat()
             url = f"https://mullett.sportified.net/schedule?date={date}"
-            soup = self._fetch_page(url)
+            try:
+                soup = self._fetch_page(url)
+            except requests.RequestException:
+                continue
             # Schedule displays day headings and event lines in chronological order.
             # Parse visible text, which also covers its mobile duplicate layout.
-            lines = [re.sub(r"\\s+", " ", t).strip()
-                     for t in soup.get_text("\\n").splitlines()]
+            lines = [re.sub(r"\s+", " ", t).strip()
+                     for t in soup.get_text("\n").splitlines()]
             lines = [line for line in lines if line]
             current_date = None
             heading = re.compile(
-                r"^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), "
-                r"([A-Za-z]+ \\d{1,2} \\d{4})$")
+                r"^(?:(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+)?"
+                r"([A-Za-z]+\s+\d{1,2},?\s+\d{4})$")
             times = re.compile(
-                r"^(\\d{1,2}:\\d{2}\\s*[ap]m)\\s*-\\s*"
-                r"(\\d{1,2}:\\d{2}\\s*[ap]m)$", re.I)
+                r"^(\d{1,2}:\d{2}\s*[ap]m)\s*-\s*"
+                r"(\d{1,2}:\d{2}\s*[ap]m)$", re.I)
             for i, line in enumerate(lines):
                 match_day = heading.match(line)
                 if match_day:
-                    current_date = datetime.strptime(match_day.group(1), "%B %d %Y").date()
+                    current_date = datetime.strptime(match_day.group(1).replace(",", ""), "%B %d %Y").date()
                     continue
                 tm = times.match(line)
                 if not tm or current_date is None:
