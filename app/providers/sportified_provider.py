@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlencode
 from hashlib import sha1
 import re
 from typing import List, Optional
@@ -181,5 +182,63 @@ class SportifiedProvider(BaseProvider):
                     )
                 )
 
+        events.extend(self._fetch_schedule_skills(now, seen))
         events.sort(key=lambda event: event.start)
         return events
+
+    def _fetch_schedule_skills(self, now, seen):
+        """Read the public schedule's rolling seven-day windows."""
+        found = []
+        # Sportified accepts ?date=YYYY-MM-DD to move its seven-day window.
+        for offset in (0, 7, 14, 21, 28):
+            date = (now + timedelta(days=offset)).date().isoformat()
+            url = f"https://mullett.sportified.net/schedule?date={date}"
+            soup = self._fetch_page(url)
+            # Schedule displays day headings and event lines in chronological order.
+            # Parse visible text, which also covers its mobile duplicate layout.
+            lines = [re.sub(r"\\s+", " ", t).strip()
+                     for t in soup.get_text("\\n").splitlines()]
+            lines = [line for line in lines if line]
+            current_date = None
+            heading = re.compile(
+                r"^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), "
+                r"([A-Za-z]+ \\d{1,2} \\d{4})$")
+            times = re.compile(
+                r"^(\\d{1,2}:\\d{2}\\s*[ap]m)\\s*-\\s*"
+                r"(\\d{1,2}:\\d{2}\\s*[ap]m)$", re.I)
+            for i, line in enumerate(lines):
+                match_day = heading.match(line)
+                if match_day:
+                    current_date = datetime.strptime(match_day.group(1), "%B %d %Y").date()
+                    continue
+                tm = times.match(line)
+                if not tm or current_date is None:
+                    continue
+                # The schedule's table is time | title | rink.
+                # Ignore duplicate mobile rows, where title precedes time.
+                title = lines[i+1] if i+1 < len(lines) else ""
+                if "adult rookie class" not in title.lower() and "adult skills" not in title.lower():
+                    continue
+                start_t = datetime.strptime(tm.group(1).replace(" ", "").lower(), "%I:%M%p").time()
+                end_t = datetime.strptime(tm.group(2).replace(" ", "").lower(), "%I:%M%p").time()
+                start = datetime.combine(current_date, start_t, tzinfo=AZ_TZ)
+                end = datetime.combine(current_date, end_t, tzinfo=AZ_TZ)
+                if end <= start:
+                    end += timedelta(days=1)
+                if end < now - timedelta(hours=2):
+                    continue
+                event_type = "Adult Skills"
+                key = (event_type, start.isoformat(), end.isoformat())
+                if key in seen:
+                    continue
+                seen.add(key)
+                uid = sha1(f"{self.source['name']}|{event_type}|{start.isoformat()}".encode()).hexdigest()[:16]
+                found.append(HockeyEvent(
+                    id=uid, title=title, event_type=event_type,
+                    rink=self.source["name"], city=self.source.get("city"),
+                    state=self.source.get("state"), start=start, end=end,
+                    register_url="https://mullett.sportified.net/products/24226",
+                    source_url=url, provider="sportified",
+                    last_updated=datetime.now(timezone.utc),
+                ))
+        return found

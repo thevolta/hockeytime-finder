@@ -24,8 +24,6 @@ sources:
         event_type: "Open Hockey"
       - url: "https://mullett.sportified.net/pages/hockey/flow-hockey"
         event_type: "Flow Hockey"
-      - url: "https://mullett.sportified.net/products/24226"
-        event_type: "Adult Skills"
 
   - name: AZ Ice Peoria
     provider: daysmart
