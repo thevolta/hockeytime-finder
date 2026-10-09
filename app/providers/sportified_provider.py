@@ -187,9 +187,8 @@ class SportifiedProvider(BaseProvider):
         return events
 
     def _fetch_schedule_skills(self, now, seen):
-        """Read the public schedule's rolling seven-day windows."""
+        """Parse Sportified's actual day-grouped schedule tables."""
         found = []
-        # Sportified accepts ?date=YYYY-MM-DD to move its seven-day window.
         for offset in (0, 7, 14, 21, 28):
             date = (now + timedelta(days=offset)).date().isoformat()
             url = f"https://mullett.sportified.net/schedule?date={date}"
@@ -197,51 +196,55 @@ class SportifiedProvider(BaseProvider):
                 soup = self._fetch_page(url)
             except requests.RequestException:
                 continue
-            # Schedule displays day headings and event lines in chronological order.
-            # Parse visible text, which also covers its mobile duplicate layout.
-            lines = [re.sub(r"\s+", " ", t).strip()
-                     for t in soup.get_text("\n").splitlines()]
-            lines = [line for line in lines if line]
-            current_date = None
-            heading = re.compile(
-                r"^(?:(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday),?\s+)?"
-                r"([A-Za-z]+\s+\d{1,2},?\s+\d{4})$")
-            times = re.compile(
-                r"^(\d{1,2}:\d{2}\s*[ap]m)\s*-\s*"
-                r"(\d{1,2}:\d{2}\s*[ap]m)$", re.I)
-            for i, line in enumerate(lines):
-                match_day = heading.match(line)
-                if match_day:
-                    current_date = datetime.strptime(match_day.group(1).replace(",", ""), "%B %d %Y").date()
+
+            for table in soup.select("table.ui.celled.striped.table"):
+                heading = table.select_one("thead th")
+                if heading is None:
                     continue
-                tm = times.match(line)
-                if not tm or current_date is None:
+                heading_text = " ".join(heading.stripped_strings)
+                try:
+                    event_date = datetime.strptime(
+                        re.sub(r"\s+", " ", heading_text), "%A, %B %d %Y"
+                    ).date()
+                except ValueError:
                     continue
-                # The schedule's table is time | title | rink.
-                # Ignore duplicate mobile rows, where title precedes time.
-                title = lines[i+1] if i+1 < len(lines) else ""
-                if "adult rookie class" not in title.lower() and "adult skills" not in title.lower():
-                    continue
-                start_t = datetime.strptime(tm.group(1).replace(" ", "").lower(), "%I:%M%p").time()
-                end_t = datetime.strptime(tm.group(2).replace(" ", "").lower(), "%I:%M%p").time()
-                start = datetime.combine(current_date, start_t, tzinfo=AZ_TZ)
-                end = datetime.combine(current_date, end_t, tzinfo=AZ_TZ)
-                if end <= start:
-                    end += timedelta(days=1)
-                if end < now - timedelta(hours=2):
-                    continue
-                event_type = "Adult Skills"
-                key = (event_type, start.isoformat(), end.isoformat())
-                if key in seen:
-                    continue
-                seen.add(key)
-                uid = sha1(f"{self.source['name']}|{event_type}|{start.isoformat()}".encode()).hexdigest()[:16]
-                found.append(HockeyEvent(
-                    id=uid, title=title, event_type=event_type,
-                    rink=self.source["name"], city=self.source.get("city"),
-                    state=self.source.get("state"), start=start, end=end,
-                    register_url="https://mullett.sportified.net/products/24226",
-                    source_url=url, provider="sportified",
-                    last_updated=datetime.now(timezone.utc),
-                ))
+
+                for row in table.select("tbody tr"):
+                    cells = row.find_all("td", recursive=False)
+                    if len(cells) != 3:
+                        continue
+                    title_node = cells[1]
+                    title = clean_title(" ".join(title_node.stripped_strings))
+                    if not ("adult rookie class" in title.lower() or "adult skills" in title.lower()):
+                        continue
+                    time_text = " ".join(cells[0].stripped_strings)
+                    match = re.search(
+                        r"(\d{1,2}:\d{2}\s*[ap]m)\s*-\s*(\d{1,2}:\d{2}\s*[ap]m)",
+                        time_text, re.I,
+                    )
+                    if not match:
+                        continue
+                    start_t = datetime.strptime(match.group(1).replace(" ", "").lower(), "%I:%M%p").time()
+                    end_t = datetime.strptime(match.group(2).replace(" ", "").lower(), "%I:%M%p").time()
+                    start = datetime.combine(event_date, start_t, tzinfo=AZ_TZ)
+                    end = datetime.combine(event_date, end_t, tzinfo=AZ_TZ)
+                    if end <= start:
+                        end += timedelta(days=1)
+                    if end < now - timedelta(hours=2):
+                        continue
+                    event_type = "Adult Skills"
+                    key = (event_type, start.isoformat(), end.isoformat())
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    link = title_node.select_one('a[href*="/products/"]')
+                    register_url = urljoin(url, link["href"]) if link else url
+                    uid = sha1(f"{self.source['name']}|{event_type}|{start.isoformat()}".encode()).hexdigest()[:16]
+                    found.append(HockeyEvent(
+                        id=uid, title=title, event_type=event_type,
+                        rink=self.source["name"], city=self.source.get("city"),
+                        state=self.source.get("state"), start=start, end=end,
+                        register_url=register_url, source_url=url,
+                        provider="sportified", last_updated=datetime.now(timezone.utc),
+                    ))
         return found
