@@ -35,6 +35,8 @@ ROW_RE = re.compile(
 
 def classify(text: str) -> Optional[str]:
     lowered = text.lower()
+    if "adult skills" in lowered or "adult hockey skills" in lowered:
+        return "Adult Skills"
     if "flow hockey" in lowered:
         return "Flow Hockey"
     if (
@@ -118,8 +120,10 @@ class SportifiedProvider(BaseProvider):
                 if not match:
                     continue
 
-                event_type = classify(match.group("title")) or page.get("event_type")
+                event_type = page.get("event_type") or classify(match.group("title"))
                 title = clean_title(match.group("title"))
+                if event_type == "Adult Skills" and "skill" not in title.lower():
+                    title = "Adult Skills"
 
                 date_text = match.group("date")
                 fmt = "%m/%d/%Y" if len(date_text.split("/")[-1]) == 4 else "%m/%d/%y"
@@ -170,7 +174,7 @@ class SportifiedProvider(BaseProvider):
                         state=self.source.get("state"),
                         start=start,
                         end=end,
-                        register_url=register_url or page_url,
+                        register_url=(page_url if event_type == "Adult Skills" else (register_url or page_url)),
                         source_url=page_url,
                         provider="sportified",
                         last_updated=datetime.now(timezone.utc),

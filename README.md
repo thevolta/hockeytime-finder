@@ -1,31 +1,18 @@
-# HockeyTime Finder
+# Step 6.22 — Mullett Adult Skills source (based on 6.20)
 
-FastAPI backend for aggregating hockey sessions from multiple rink providers.
+Copy both files into your existing project:
+- app/providers/sportified_provider.py
+- app/config/sources.yaml
 
-## Run locally
+The site already has an Adult Skills checkbox, event color and popup from 6.20.
+The source is the supplied Sportified product 24226, with direct registration links.
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
+IMPORTANT: Sportified's product URL could not be fetched for verification.
+This patch parses sessions only if the product page exposes schedule rows in
+the same format as the other Mullett pages. If it doesn't, the provider needs
+a different schedule endpoint or structured-data parser; this patch will not
+invent dates or times. The product might be a single registration page without
+schedule rows.
 
-Then open:
-
-- API docs: http://127.0.0.1:8000/docs
-- Events: http://127.0.0.1:8000/api/events
-- Calendar feed: http://127.0.0.1:8000/calendar.ics
-
-## Current provider types
-
-- RSS
-- Sportified
-- DaySmart (scaffold / config-ready)
-
-## Next steps
-
-1. Finish provider-specific parsing.
-2. Add scheduled refresh into SQLite.
-3. Add React frontend.
-4. Deploy backend and frontend.
+After deploying, refresh cache and inspect /api/events?rink=Mullett%20Arena
+for event_type Adult Skills. Also inspect /api/status for provider errors.

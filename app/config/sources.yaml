@@ -5,7 +5,6 @@ sources:
     city: Chandler
     request_timeout: 8
     url: "https://www.icedenchandler.com/event_rss_feed?tags=2703965%2C2703970%2C2704012"
-    register_fallback: "https://clients.mindbodyonline.com/classic/ws?studioid=884177&stype=-103&sTG=28&sView=week&sLoc=1&sTrn=100000014"
 
   - name: Ice Den Scottsdale
     provider: rss
@@ -13,7 +12,6 @@ sources:
     city: Scottsdale
     request_timeout: 8
     url: "https://www.icedenscottsdale.com/event_rss_feed?tags=2670384%2C2670407%2C2678497%2C2662957"
-    register_fallback: "https://clients.mindbodyonline.com/classic/ws?studioid=760588&stype=-103&sView=day&sLoc=0"
 
   - name: Mullett Arena
     provider: sportified
@@ -26,6 +24,8 @@ sources:
         event_type: "Open Hockey"
       - url: "https://mullett.sportified.net/pages/hockey/flow-hockey"
         event_type: "Flow Hockey"
+      - url: "https://mullett.sportified.net/products/24226"
+        event_type: "Adult Skills"
 
   - name: AZ Ice Peoria
     provider: daysmart
@@ -37,19 +37,6 @@ sources:
     chunk_days: 2
     chunk_workers: 8
     cache_seconds: 300
-    register_fallback: "https://apps.daysmartrecreation.com/dash/x/azice/programs/6/levels"
-
-  - name: AZ Ice Gilbert
-    provider: daysmart
-    company: azice
-    facility_id: 2
-    state: AZ
-    city: Gilbert
-    days_ahead: 14
-    chunk_days: 2
-    chunk_workers: 8
-    cache_seconds: 300
-    public_page: "https://apps.daysmartrecreation.com/dash/x/azice/calendar?start=2026-08-06&end=2026-08-06"
     register_fallback: "https://apps.daysmartrecreation.com/dash/x/azice/programs/6/levels"
 
   - name: AZ Ice Arcadia
